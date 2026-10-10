@@ -41,10 +41,13 @@ export type TypeModel = {
 export type FunctionModel = {
   name: string;
   description: string;
-  handler: 'native';
   params: FieldModel[];
   returns: ValueModel;
-};
+} & (
+  | { handler: 'native' }
+  /** Runs `registerAppFunctionHandler(name, …)` in JS via Headless JS. */
+  | { handler: 'js'; timeoutMs: number }
+);
 
 export type AppFunctionsModel = {
   kotlinPackage: string;

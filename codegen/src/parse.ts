@@ -3,14 +3,15 @@ import ts from 'typescript';
 import { ConfigError } from './errors';
 
 /** A plain value extracted from the config literal. */
-export type Literal = string | boolean | Literal[] | { [key: string]: Literal };
+export type Literal =
+  string | number | boolean | Literal[] | { [key: string]: Literal };
 
 /**
  * Extracts the default export of `appfunctions.config.ts` as plain data, without executing it.
  *
  * Accepted: `export default defineAppFunctions({...})` or `export default {...}`, optionally with
- * `as const` / `satisfies`. Values may only be string literals, booleans, arrays and object
- * literals.
+ * `as const` / `satisfies`. Values may only be string and number literals, booleans, arrays and
+ * object literals.
  */
 export function parseConfigSource(source: string, fileName: string): Literal {
   const sf = ts.createSourceFile(
@@ -57,6 +58,7 @@ export function parseConfigSource(source: string, fileName: string): Literal {
     if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
       return node.text;
     }
+    if (ts.isNumericLiteral(node)) return Number(node.text);
     if (node.kind === ts.SyntaxKind.TrueKeyword) return true;
     if (node.kind === ts.SyntaxKind.FalseKeyword) return false;
     if (ts.isArrayLiteralExpression(node)) {
@@ -96,7 +98,7 @@ export function parseConfigSource(source: string, fileName: string): Literal {
       return obj;
     }
     problems.push(
-      `${where(node)}: only literal values are allowed (strings, booleans, objects, arrays); found ${describe(node)}. The config is read at build time and never executed.`
+      `${where(node)}: only literal values are allowed (strings, numbers, booleans, objects, arrays); found ${describe(node)}. The config is read at build time and never executed.`
     );
     return undefined;
   };

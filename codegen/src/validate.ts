@@ -62,6 +62,10 @@ const RESERVED_TYPE_NAMES = new Set([
   'Unit',
 ]);
 
+export const DEFAULT_JS_TIMEOUT_MS = 10_000;
+const MIN_JS_TIMEOUT_MS = 100;
+const MAX_JS_TIMEOUT_MS = 600_000;
+
 const LOWER_CAMEL = /^[a-z][A-Za-z0-9]*$/;
 const UPPER_CAMEL = /^[A-Z][A-Za-z0-9]*$/;
 const PACKAGE = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$/;
@@ -140,6 +144,7 @@ export function validateConfig(raw: Literal): AppFunctionsModel {
     serviceName,
     baseClassName,
     'AppFunctionsHandlers',
+    'AppFunctionsJson',
     ...functionNames.map(handlerInterfaceName),
   ]);
 
@@ -202,7 +207,7 @@ export function validateConfig(raw: Literal): AppFunctionsModel {
     }
     checkKeys(
       spec,
-      ['description', 'handler', 'params', 'returns'],
+      ['description', 'handler', 'timeoutMs', 'params', 'returns'],
       where,
       fail
     );
@@ -217,13 +222,27 @@ export function validateConfig(raw: Literal): AppFunctionsModel {
         'required: agents choose functions by their description'
       );
     }
-    if (spec.handler === 'js') {
-      fail(
-        `${where}, field "handler"`,
-        '"js" handlers are not supported yet; use "native"'
-      );
-    } else if (spec.handler !== 'native') {
-      fail(`${where}, field "handler"`, 'must be "native"');
+    const handler = spec.handler === 'js' ? 'js' : 'native';
+    if (spec.handler !== 'native' && spec.handler !== 'js') {
+      fail(`${where}, field "handler"`, 'must be "native" or "js"');
+    }
+    let timeoutMs = DEFAULT_JS_TIMEOUT_MS;
+    if (spec.timeoutMs !== undefined) {
+      if (handler !== 'js') {
+        fail(`${where}, field "timeoutMs"`, 'only applies to "js" handlers');
+      } else if (
+        typeof spec.timeoutMs !== 'number' ||
+        !Number.isInteger(spec.timeoutMs) ||
+        spec.timeoutMs < MIN_JS_TIMEOUT_MS ||
+        spec.timeoutMs > MAX_JS_TIMEOUT_MS
+      ) {
+        fail(
+          `${where}, field "timeoutMs"`,
+          `must be a whole number of milliseconds between ${MIN_JS_TIMEOUT_MS} and ${MAX_JS_TIMEOUT_MS}`
+        );
+      } else {
+        timeoutMs = spec.timeoutMs;
+      }
     }
     const paramsObj = spec.params === undefined ? {} : asObject(spec.params);
     if (!paramsObj) fail(`${where}, field "params"`, 'must be an object');
@@ -243,7 +262,9 @@ export function validateConfig(raw: Literal): AppFunctionsModel {
     functions.push({
       name,
       description: description ?? '',
-      handler: 'native',
+      ...(handler === 'js'
+        ? { handler: 'js' as const, timeoutMs }
+        : { handler: 'native' as const }),
       params,
       returns,
     });

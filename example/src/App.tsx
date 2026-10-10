@@ -1,12 +1,11 @@
 import { Text, View, StyleSheet } from 'react-native';
-import { multiply } from 'react-native-app-functions';
-
-const result = multiply(3, 7);
 
 export default function App() {
   return (
     <View style={styles.container}>
-      <Text>Result: {result}</Text>
+      <Text style={styles.title}>react-native-app-functions example</Text>
+      <Text>listTodaysRecords: native handler (Kotlin)</Text>
+      <Text>findRecord: JS handler (src/appFunctions.ts)</Text>
     </View>
   );
 }
@@ -16,5 +15,9 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
+  },
+  title: {
+    fontWeight: 'bold',
   },
 });

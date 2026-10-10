@@ -1,10 +1,11 @@
 #import "AppFunctions.h"
 
+// AppFunctions is Android-only; iOS keeps a no-op module so the spec builds.
 @implementation AppFunctions
-- (NSNumber *)multiply:(double)a b:(double)b {
-    NSNumber *result = @(a * b);
+- (void)completeCall:(NSString *)callId resultJson:(NSString *)resultJson {
+}
 
-    return result;
+- (void)failCall:(NSString *)callId code:(NSString *)code message:(NSString *)message {
 }
 
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:

@@ -6,7 +6,14 @@ import {
   manifestFile,
   stringsFile,
 } from './templates/android';
-import { handlersFile, serviceFile, typeFile } from './templates/kotlin';
+import { jsonFile } from './templates/json';
+import {
+  handlersFile,
+  hasJs,
+  hasNative,
+  serviceFile,
+  typeFile,
+} from './templates/kotlin';
 import { kotlinPackagePath } from './templates/shared';
 
 export type OutputRoot = 'kotlin' | 'res' | 'manifest';
@@ -32,11 +39,24 @@ export function render(m: AppFunctionsModel): GeneratedFile[] {
       path: `${pkg}/${t.name}.kt`,
       contents: typeFile(m, t),
     })),
-    {
-      root: 'kotlin',
-      path: `${pkg}/AppFunctionsHandlers.kt`,
-      contents: handlersFile(m),
-    },
+    ...(hasNative(m)
+      ? [
+          {
+            root: 'kotlin' as const,
+            path: `${pkg}/AppFunctionsHandlers.kt`,
+            contents: handlersFile(m),
+          },
+        ]
+      : []),
+    ...(hasJs(m)
+      ? [
+          {
+            root: 'kotlin' as const,
+            path: `${pkg}/AppFunctionsJson.kt`,
+            contents: jsonFile(m),
+          },
+        ]
+      : []),
     {
       root: 'manifest',
       path: 'AndroidManifest.xml',

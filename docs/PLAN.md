@@ -184,3 +184,89 @@ src/config.ts           defineAppFunctions + config types (the `./config` export
 - **Device availability (medium).** Needs Android 16+ with the `app_function` system service. Unverified: whether stock API 36 emulator images ship it. If not, a physical Pixel on Android 16 is needed.
 - **Expo consumers (low for now).** Codegen runs from a Gradle task, so Expo apps work after prebuild; a config plugin wrapper (manifest + `apply from`) comes later.
 - **Serialization gaps.** No `Map`, no enums (use `String` + `@AppFunctionStringValueConstraint`), constructor defaults ignored. Codegen must reject or translate these.
+
+## 7. Phase 3 detailed plan: `handler: "js"` (approved and implemented 2026-10-10)
+
+Facts behind this plan are in `VERIFIED.md` under "Headless JS internals".
+
+### 7.1 How a JS call flows
+
+```
+agent → FieldAppFunctionService (KSP) → Base…Service.findRecord(id)          [generated]
+      → JsBridge.call(context, "findRecord", argsJson, timeoutMs)            [library, Kotlin]
+          1. callId = UUID; CompletableDeferred registered under callId
+          2. on the main thread: reactHost.currentReactContext ?: reactHost.start() + wait
+          3. HeadlessJsTaskContext.startTask(HeadlessJsTaskConfig(
+               "ReactNativeAppFunctions", {callId, name, argsJson}, timeout, allowedInForeground = true))
+          4. withTimeout(timeoutMs) { deferred.await() }
+      → JS: headless task "ReactNativeAppFunctions" (registered by the library on import)
+          looks up the handler from registerAppFunctionHandler(name, fn), awaits it, then calls
+          NativeAppFunctions.completeCall(callId, JSON.stringify(result))
+          or NativeAppFunctions.failCall(callId, code, message). The task itself never rejects.
+      → JsBridge resolves the deferred → generated code decodes JSON → typed Kotlin result
+```
+
+- **Why not `HeadlessJsTaskService`:** it's a started service, launched with `startForegroundService` from the background. We're already inside a bound service that keeps the process alive, so we use the same `ReactHost` / `HeadlessJsTaskContext` calls it makes internally.
+- **Fail fast:** if the task finishes (`onHeadlessJsTaskFinish`) without `completeCall`/`failCall`, for example because no handler is registered, the call fails immediately with a message telling the app to call `registerAppFunctionHandler` in `index.js`. It doesn't wait for the timeout.
+- **The library module stays free of the alpha dependency.** `JsBridge` returns a plain result (`Success(json)` / `Failure(code, message)`). The *generated* code, which already depends on `androidx.appfunctions`, maps it to AppFunction exceptions.
+
+### 7.2 Public API (needs approval)
+
+```ts
+// index.js, top level, before AppRegistry.registerComponent (it must run on a headless start too)
+import { registerAppFunctionHandler, AppFunctionError } from 'react-native-app-functions';
+import type config from './appfunctions.config';
+
+registerAppFunctionHandler<typeof config, 'findRecord'>('findRecord', async ({ id }) => {
+  const row = await db.getRecord(id);
+  if (!row) throw new AppFunctionError('NOT_FOUND', `No record ${id}`);
+  return { id: row.id, title: row.title, status: row.status, scheduledAt: row.scheduledAt };
+});
+```
+
+- **Typed args and return values with no extra codegen:** `defineAppFunctions` already keeps the literal type (`const T`), so the TS types for each handler are derived at the type level from `typeof config`. The JS bundle never imports the config, because `import type` is erased.
+- **Wire format** (JSON):
+
+  | Type | JSON |
+  |---|---|
+  | `string`, `boolean` | as is |
+  | `int`, `long`, `double` | number (`long` above 2^53 loses precision, which will be documented) |
+  | `localDate` | `"2026-10-10"` |
+  | `localDateTime` | `"2026-10-10T08:30"` |
+  | `instant` | `"2026-10-10T08:30:00Z"` (ISO-8601) |
+  | nullable | `null` |
+  | list | array |
+  | declared type | object |
+
+- **`AppFunctionError(code, message)`**, with code one of `INVALID_ARGUMENT | NOT_FOUND | DENIED | PERMISSION_REQUIRED | LIMIT_EXCEEDED | ALREADY_EXISTS`. These map to the matching `AppFunction*Exception`. Any other thrown error, an invalid return value, or a timeout becomes `AppFunctionAppUnknownException` with a message.
+- **Config additions:** `handler: 'js'` and an optional per-function `timeoutMs`, default 10 000.
+  - The `cmd` tool waits 30 s by default; the real agent's budget is undocumented.
+  - The default is a guess to tune after measuring.
+- **The scaffold's `multiply`** in `src/` and the Turbo Module are replaced by `completeCall` / `failCall`.
+
+### 7.3 What the codegen adds (only when a config has `js` functions)
+
+- The `js` declarations call `JsBridge` instead of a handler.
+- A generated `AppFunctionsJson.kt` with `toJson` / `fromJson` for every type that `js` functions use, built on Android's built-in `org.json` (no new dependency). It validates strictly; for example, `"findRecord" returned an invalid value: field "status" is missing` becomes `AppFunctionAppUnknownException`.
+- `js` functions get no `…Handler` interface.
+- Native-only configs (like the Phase 1/2 reference) generate exactly what they do today, so the existing fixture test still holds.
+
+### 7.4 Steps
+
+1. Library runtime: `JsBridge.kt`, the Turbo Module (`completeCall`, `failCall`), and the JS side (`registerAppFunctionHandler`, `AppFunctionError`, the headless task, handler types).
+2. Write the expected Kotlin for one JS function by hand as a new fixture (`__fixtures__/handwritten-js/`): the example config plus `findRecord(id): FieldRecord?`, with `listTodaysRecords` staying native.
+   - **Deviation from the "hand-write in the app first" rule:** the generator now owns the service file, so hand-writing it into the app means fighting the generator. Instead the hand-written fixture is the target, and device verification happens right after step 3.
+3. Codegen: `handler: 'js'`, `timeoutMs`, and the JSON codec templates. The render test asserts output == hand-written fixture. Add type-mapping and validation tests.
+4. Example app: the `findRecord` JS handler in `index.js` over the same dummy data.
+5. Verify on the Android 17 and 16 QPR emulators:
+   - success, not-found (`AppFunctionError`), a bad return value, and the timeout;
+   - app in the foreground (no crash);
+   - **cold-start latency of the JS path** in a release build (bundle embedded), compared with native, over 5 runs each after `am force-stop`;
+   - the debug build with Metro, noting that a killed debug app needs Metro running.
+6. Docs: README (JS handlers, `index.js` placement, wire format, timeouts), VERIFIED, DECISIONS.
+
+### 7.5 Risks
+
+- **Cold-start JS latency** could be several seconds (process start + Hermes + bundle load). If it's too slow for agents, mitigations are keeping handlers in a small separate entry, or recommending `native` for hot paths. We'll measure first.
+- **Foreground interplay:** the handler shares the JS thread with the UI. Long handlers would jank the UI, so this needs documenting.
+- **Debug builds** need Metro to load the bundle on a cold start.

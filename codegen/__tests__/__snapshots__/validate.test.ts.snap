@@ -69,3 +69,229 @@ interface AppFunctionsHandlers {
 }
 "
 `;
+
+exports[`js handlers encodes params, calls JsBridge with the timeout, decodes the result 1`] = `
+"// GENERATED — do not edit. Source: appfunctions.config.ts (react-native-app-functions).
+package com.example.app.appfunctions
+
+import androidx.annotation.RequiresApi
+import androidx.appfunctions.AppFunctionAppUnknownException
+import androidx.appfunctions.AppFunctionDeclaration
+import androidx.appfunctions.AppFunctionDeniedException
+import androidx.appfunctions.AppFunctionElementAlreadyExistsException
+import androidx.appfunctions.AppFunctionElementNotFoundException
+import androidx.appfunctions.AppFunctionInvalidArgumentException
+import androidx.appfunctions.AppFunctionLimitExceededException
+import androidx.appfunctions.AppFunctionPermissionRequiredException
+import androidx.appfunctions.AppFunctionService
+import androidx.appfunctions.AppFunctionServiceEntryPoint
+import io.github.alvinotuya.appfunctions.JsBridge
+import java.time.Instant
+import java.time.LocalDate
+import kotlin.coroutines.resume
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
+import org.json.JSONArray
+import org.json.JSONObject
+import org.json.JSONTokener
+
+/**
+ * AppFunctions entry point. KSP generates the concrete \`MyAppFunctionService\` subclass and
+ * \`assets/my_app_function_service.xml\` (plus \`my_app_function_service-v1.xml\`) from this class.
+ */
+@RequiresApi(36)
+@AppFunctionServiceEntryPoint(
+  serviceName = "MyAppFunctionService",
+  appFunctionXmlFileName = "my_app_function_service",
+)
+abstract class BaseMyAppFunctionService : AppFunctionService() {
+
+  /** Does a thing. */
+  @AppFunctionDeclaration(isDescribedByKDoc = true)
+  suspend fun saveVisits(
+    visits: List<Visit>,
+    day: LocalDate,
+    note: String? = null,
+    since: Instant? = null,
+  ): List<Visit>? {
+    val args = JSONObject()
+    args.put("visits", JSONArray(visits.map { item -> AppFunctionsJson.encodeVisit(item) }))
+    args.put("day", day.toString())
+    args.put("note", note ?: JSONObject.NULL)
+    args.put("since", since?.let { it.toString() } ?: JSONObject.NULL)
+    val result = callJs("saveVisits", args, 2500L)
+    return decodeJsResult("saveVisits") { AppFunctionsJson.orNull(result) { AppFunctionsJson.list(it, "result") { item, itemPath -> AppFunctionsJson.decodeVisit(item, itemPath) } } }
+  }
+
+  /** Runs the JS handler [name] via Headless JS and returns its parsed JSON result. */
+  private suspend fun callJs(name: String, args: JSONObject, timeoutMs: Long): Any? {
+    val result =
+      withTimeoutOrNull(timeoutMs) {
+        suspendCancellableCoroutine<JsBridge.Result> { cont ->
+          val call =
+            JsBridge.call(applicationContext, name, args.toString(), timeoutMs) { cont.resume(it) }
+          cont.invokeOnCancellation { call.cancel() }
+        }
+      }
+        ?: throw AppFunctionAppUnknownException(
+          "JS handler \\"$name\\" did not respond within $timeoutMs ms"
+        )
+    return when (result) {
+      is JsBridge.Result.Success -> JSONTokener(result.json).nextValue()
+      is JsBridge.Result.Failure -> throw jsFailure(result)
+    }
+  }
+
+  private fun jsFailure(failure: JsBridge.Result.Failure): Exception =
+    when (failure.code) {
+      "INVALID_ARGUMENT" -> AppFunctionInvalidArgumentException(failure.message)
+      "NOT_FOUND" -> AppFunctionElementNotFoundException(failure.message)
+      "DENIED" -> AppFunctionDeniedException(failure.message)
+      "PERMISSION_REQUIRED" -> AppFunctionPermissionRequiredException(failure.message)
+      "LIMIT_EXCEEDED" -> AppFunctionLimitExceededException(failure.message)
+      "ALREADY_EXISTS" -> AppFunctionElementAlreadyExistsException(failure.message)
+      else -> AppFunctionAppUnknownException(failure.message)
+    }
+
+  private inline fun <T> decodeJsResult(name: String, decode: () -> T): T =
+    try {
+      decode()
+    } catch (e: AppFunctionsJson.InvalidValueException) {
+      throw AppFunctionAppUnknownException("\\"$name\\" returned an invalid value: \${e.message}")
+    }
+}
+"
+`;
+
+exports[`js handlers generates encoders and strict decoders for every type shape 1`] = `
+"// GENERATED — do not edit. Source: appfunctions.config.ts (react-native-app-functions).
+package com.example.app.appfunctions
+
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.format.DateTimeParseException
+import org.json.JSONArray
+import org.json.JSONObject
+
+/**
+ * JSON encoding for values exchanged with JS handlers. Dates and times are ISO-8601 strings;
+ * decoding is strict and reports the path of the first invalid value.
+ */
+internal object AppFunctionsJson {
+  class InvalidValueException(message: String) : Exception(message)
+
+  fun encodeVisit(v: Visit): JSONObject {
+    val o = JSONObject()
+    o.put("id", v.id)
+    o.put("count", v.count)
+    o.put("total", v.total ?: JSONObject.NULL)
+    o.put("tags", JSONArray(v.tags))
+    o.put("at", v.at?.let { JSONArray(it.map { item -> item.toString() }) } ?: JSONObject.NULL)
+    o.put("on", v.on?.let { it.toString() } ?: JSONObject.NULL)
+    o.put("child", v.child?.let { encodeChild(it) } ?: JSONObject.NULL)
+    o.put("children", JSONArray(v.children.map { item -> encodeChild(item) }))
+    return o
+  }
+
+  fun decodeVisit(v: Any?, path: String): Visit {
+    val o = obj(v, path)
+    return Visit(
+      id = string(o.opt("id"), "$path.id"),
+      count = int(o.opt("count"), "$path.count"),
+      total = orNull(o.opt("total")) { long(it, "$path.total") },
+      tags = list(o.opt("tags"), "$path.tags") { item, itemPath -> string(item, itemPath) },
+      at = orNull(o.opt("at")) { list(it, "$path.at") { item, itemPath -> instant(item, itemPath) } },
+      on = orNull(o.opt("on")) { localDate(it, "$path.on") },
+      child = orNull(o.opt("child")) { decodeChild(it, "$path.child") },
+      children = list(o.opt("children"), "$path.children") { item, itemPath -> decodeChild(item, itemPath) },
+    )
+  }
+
+  fun encodeChild(v: Child): JSONObject {
+    val o = JSONObject()
+    o.put("ok", v.ok)
+    o.put("ratio", v.ratio)
+    return o
+  }
+
+  fun decodeChild(v: Any?, path: String): Child {
+    val o = obj(v, path)
+    return Child(
+      ok = boolean(o.opt("ok"), "$path.ok"),
+      ratio = double(o.opt("ratio"), "$path.ratio"),
+    )
+  }
+
+  fun isNull(v: Any?): Boolean = v == null || v == JSONObject.NULL
+
+  inline fun <T> orNull(v: Any?, decode: (Any) -> T): T? = if (v == null || isNull(v)) null else decode(v)
+
+  fun obj(v: Any?, path: String): JSONObject = v as? JSONObject ?: invalid(path, "an object", v)
+
+  fun string(v: Any?, path: String): String = v as? String ?: invalid(path, "a string", v)
+
+  fun boolean(v: Any?, path: String): Boolean = v as? Boolean ?: invalid(path, "a boolean", v)
+
+  fun double(v: Any?, path: String): Double = (v as? Number)?.toDouble() ?: invalid(path, "a number", v)
+
+  fun long(v: Any?, path: String): Long =
+    when (v) {
+      is Int -> v.toLong()
+      is Long -> v
+      is Number ->
+        v.toDouble().let { d ->
+          if (d % 1.0 == 0.0 && d >= Long.MIN_VALUE.toDouble() && d <= Long.MAX_VALUE.toDouble()) {
+            d.toLong()
+          } else {
+            invalid(path, "an integer", v)
+          }
+        }
+      else -> invalid(path, "an integer", v)
+    }
+
+  fun int(v: Any?, path: String): Int {
+    val l = long(v, path)
+    if (l < Int.MIN_VALUE || l > Int.MAX_VALUE) invalid(path, "a 32-bit integer", v)
+    return l.toInt()
+  }
+
+  fun localDate(v: Any?, path: String): LocalDate =
+    parse(v, path, "an ISO-8601 date like 2026-10-10") { LocalDate.parse(it) }
+
+  fun localDateTime(v: Any?, path: String): LocalDateTime =
+    parse(v, path, "an ISO-8601 local date-time like 2026-10-10T08:30") { LocalDateTime.parse(it) }
+
+  fun instant(v: Any?, path: String): Instant =
+    parse(v, path, "an ISO-8601 instant like 2026-10-10T08:30:00Z") { Instant.parse(it) }
+
+  inline fun <T> list(v: Any?, path: String, item: (Any?, String) -> T): List<T> {
+    val a = v as? JSONArray ?: invalid(path, "an array", v)
+    return List(a.length()) { i -> item(a.opt(i), "$path[$i]") }
+  }
+
+  inline fun <T> parse(v: Any?, path: String, expected: String, parse: (String) -> T): T {
+    val s = string(v, path)
+    return try {
+      parse(s)
+    } catch (e: DateTimeParseException) {
+      invalid(path, expected, v)
+    }
+  }
+
+  fun invalid(path: String, expected: String, v: Any?): Nothing =
+    throw InvalidValueException(
+      if (isNull(v)) "$path is missing or null, expected $expected"
+      else "$path: expected $expected, got \${describe(v)}"
+    )
+
+  private fun describe(v: Any?): String =
+    when (v) {
+      is JSONObject -> "an object"
+      is JSONArray -> "an array"
+      is String -> "\\"\${v.take(40)}\\""
+      else -> v.toString()
+    }
+}
+"
+`;

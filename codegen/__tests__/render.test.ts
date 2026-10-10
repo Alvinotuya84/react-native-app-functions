@@ -3,10 +3,10 @@ import * as path from 'node:path';
 import { generate } from '../src/cli';
 import type { OutputRoot } from '../src/render';
 
-const FIXTURE = path.join(__dirname, '../__fixtures__/handwritten');
+const FIXTURES = path.join(__dirname, '../__fixtures__');
 
-function fixtureFiles(root: OutputRoot): Map<string, string> {
-  const dir = path.join(FIXTURE, root);
+function fixtureFiles(fixture: string, root: OutputRoot): Map<string, string> {
+  const dir = path.join(FIXTURES, fixture, root);
   const out = new Map<string, string>();
   const walk = (d: string) => {
     for (const e of fs.readdirSync(d, { withFileTypes: true })) {
@@ -23,13 +23,18 @@ function fixtureFiles(root: OutputRoot): Map<string, string> {
   return out;
 }
 
-describe('codegen reproduces the hand-written Phase 1 reference', () => {
-  const generated = generate(path.join(FIXTURE, 'appfunctions.config.ts'));
+describe.each([
+  ['handwritten', 'Phase 1 native-only reference'],
+  ['handwritten-js', 'Phase 3 native + js reference'],
+])('codegen reproduces the hand-written %s fixture (%s)', (fixture) => {
+  const generated = generate(
+    path.join(FIXTURES, fixture, 'appfunctions.config.ts')
+  );
 
   it.each<OutputRoot>(['kotlin', 'manifest', 'res'])(
     '%s output matches byte for byte',
     (root) => {
-      const expected = fixtureFiles(root);
+      const expected = fixtureFiles(fixture, root);
       const actual = new Map(
         generated
           .filter((f) => f.root === root)
@@ -44,14 +49,14 @@ describe('codegen reproduces the hand-written Phase 1 reference', () => {
       }
     }
   );
+});
 
-  it('example app config is the reference config', () => {
-    const example = path.join(
-      __dirname,
-      '../../example/appfunctions.config.ts'
-    );
-    expect(fs.readFileSync(example, 'utf8')).toBe(
-      fs.readFileSync(path.join(FIXTURE, 'appfunctions.config.ts'), 'utf8')
-    );
-  });
+it('example app config is the latest reference config (handwritten-js)', () => {
+  const example = path.join(__dirname, '../../example/appfunctions.config.ts');
+  expect(fs.readFileSync(example, 'utf8')).toBe(
+    fs.readFileSync(
+      path.join(FIXTURES, 'handwritten-js', 'appfunctions.config.ts'),
+      'utf8'
+    )
+  );
 });

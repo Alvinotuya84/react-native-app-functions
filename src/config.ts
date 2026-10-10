@@ -44,8 +44,13 @@ export type AppFunctionTypeSpec = Described & {
 export type AppFunctionSpec = {
   /** Shown to the agent. Say what the function does and when to use it. */
   description: string;
-  /** `native`: implemented in Kotlin by the app. (`js` is planned.) */
-  handler: 'native';
+  /**
+   * `native`: implemented in Kotlin by the app (fast, works without the JS runtime).
+   * `js`: implemented with `registerAppFunctionHandler`, run as a Headless JS task.
+   */
+  handler: 'native' | 'js';
+  /** `js` only: how long to wait for the handler, in ms. Default 10000. */
+  timeoutMs?: number;
   params?: Record<string, AppFunctionValueSpec>;
   returns: AppFunctionValueSpec;
 };

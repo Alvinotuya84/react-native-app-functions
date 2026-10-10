@@ -126,6 +126,27 @@ Source: our own build of `example/` and emulator runs. Logs and commands are in 
 | Phase 2 end to end: the example built only from `appfunctions.config.ts` via `android/appfunctions.gradle` lists (7 descriptions) and executes cold on Android 17 and 16 QPR, is indexed on 16.0, and launches with no crash on API 31. | 2026-10-10 |
 | SDK package IDs are minor-versioned: `platforms;android-37.0` (not `android-37`). | 2026-10-10 |
 
+## Headless JS internals (RN 0.87.1 source, `node_modules/react-native/ReactAndroid/.../jstasks/`, `HeadlessJsTaskService.kt`, `Libraries/ReactNative/AppRegistryImpl.js`)
+
+| Fact | Checked |
+|---|---|
+| Bridgeless is supported: when `enableBridgelessArchitecture()`, `HeadlessJsTaskService` uses `(application as ReactApplication).reactHost`. If `currentReactContext` is null it calls `reactHost.start()` and waits for `ReactInstanceEventListener.onReactContextInitialized`, then calls `HeadlessJsTaskContext.getInstance(ctx).startTask(config)`. | 2026-10-10 |
+| `HeadlessJsTaskContext.startTask` must run on the UI thread. It **throws** if the context's lifecycle is `RESUMED` and `isAllowedInForeground` is false. It returns an int task id. Listeners (`HeadlessJsTaskEventListener`) get `onHeadlessJsTaskStart/Finish(taskId)`. | 2026-10-10 |
+| `HeadlessJsTaskConfig(taskKey, data: WritableMap, timeout: Long = 0, isAllowedInForeground = false, retryPolicy)`. The timeout only calls `finishTask` (it doesn't stop JS). | 2026-10-10 |
+| JS side `startHeadlessTask(taskId, taskKey, data)`: an unknown key → `console.warn` + `notifyTaskFinished` immediately. The task promise resolving → `notifyTaskFinished`. A rejection → `console.error` (red box in dev). **No result value is passed back to native**, so results need their own native-module call. | 2026-10-10 |
+| `HeadlessJsTaskService` is a *started* service (`startForegroundService` in the docs, which is subject to Android 12+ background-start limits). We are inside a *bound* `AppFunctionService`, so we can drive `ReactHost` + `HeadlessJsTaskContext` directly without starting another service. | 2026-10-10 |
+
+## Phase 3 results (our builds, 2026-10-10)
+
+| Fact | Checked |
+|---|---|
+| JS path end to end (release APK, bundle embedded) on Android 17 and 16 QPR emulators: cold success, `AppFunctionError('NOT_FOUND')` → platform code 1500, invalid return value → code 3000 with the field path, timeout → code 3000 after about 10.1 s, call while the app is in the foreground → success with no crash. | 2026-10-10 |
+| Cold calls really start a new process (`pidof` empty before; logcat `Start proc …for bound-service`), and `BridgelessReact` creates the instance and loads the bundle. | 2026-10-10 |
+| Latency (emulator on an Apple Silicon host, includes adb, 5 runs): Android 17 native cold 90–148 ms / warm 51–79 ms; JS cold 96–270 ms / warm 49–71 ms. Android 16 QPR: native cold 100–179 ms, JS cold 112–176 ms. **Real devices will be slower; needs re-measuring on hardware.** | 2026-10-10 |
+| Debug build, cold, Metro not running: the JS function times out (no bundle); native functions keep working. | 2026-10-10 |
+| `suspendCancellableCoroutine` inside `withTimeoutOrNull` needs an explicit type argument (`<JsBridge.Result>`), or Kotlin infers `Nothing?`. | 2026-10-10 |
+| Derived TS handler types reject wrong return field types, unknown argument names and unknown function names (probe compiled with `tsc`). | 2026-10-10 |
+
 ## Local machine (2026-10-10)
 
 - JDK 17.0.14. Android SDK platform `android-37.0` and build-tools 37.0.0 installed (2026-10-10). `adb` present.
@@ -134,7 +155,7 @@ Source: our own build of `example/` and emulator runs. Logs and commands are in 
 
 ## Open questions
 
-1. **Headless JS on the New Architecture / bridgeless.** The RN docs page says nothing about bridgeless/`ReactHost`, or about Android 12+ restrictions on starting foreground services from the background. We'll be starting from inside a bound `AppFunctionService`, not `startForegroundService`. Need to read RN 0.87 `HeadlessJsTaskService`/`HeadlessJsTaskContext` source before Phase 3.
+1. ~~Headless JS on bridgeless~~: resolved from the RN 0.87.1 source, and works on device (see Phase 3 results).
 2. ~~Aggregation with a single module~~: resolved, it works (see Phase 1 table).
 3. **Generated code location for a library.** The function list is per-consumer-app, so it can't live in our library's own Gradle module (that would mean writing into `node_modules`). Phase 1 showed a single app module works, so the leading option is to generate into an app-module source dir (e.g. `app/build/generated/appfunctions/`) registered by our Gradle script. To decide in Phase 2.
 4. **Executing own functions from the harness.** Unverified: whether `executeAppFunction` on our own package succeeds without `EXECUTE_APP_FUNCTIONS` (the annotation says "conditional"). We'll test in Phase 4. `adb` covers us until then.
@@ -143,3 +164,6 @@ Source: our own build of `example/` and emulator runs. Logs and commands are in 
 7. **`AppFunctionTestRule` with the entry-point pattern.** Its KDoc is outdated, and it's unclear whether it supports `@AppFunctionServiceEntryPoint` classes.
 8. **Android 16.0 execution.** It's now indexed via the v1 file (see table), but there's no `cmd app_function` on 16.0, so execution there is unverified. The v1 index also has no descriptions or parameter schema, so it's unclear what an agent on 16.0 sees. Next: verify with the in-app harness (Phase 4) or a real device. `generateV1Xml` and the v1 property are not in the official docs; we rely on the AOSP and compiler source.
 9. **Consumer impact.** The AGP 9.1 / compileSdk 37 floor means consumer apps need RN ≥ 0.87 (or Expo SDK ≥ 58). Check the field-agent app's RN version.
+10. **The `NO_RESULT` path** (task finishes without a result, for example when no handler is registered) is implemented but not exercised on a device yet.
+11. **Generated Kotlin for every type shape** is snapshot-tested but only the example's shapes are compiled. Add a compile check (a richer example config or a test module) before relying on lists of instants and nested nullable types.
+12. **Real-device latency** for cold JS calls (the emulator numbers are a lower bound).

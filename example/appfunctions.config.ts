@@ -47,5 +47,21 @@ export default defineAppFunctions({
           "Today's field records. Empty if nothing is scheduled today.",
       },
     },
+    findRecord: {
+      description:
+        'Finds one field record by its id. Read-only.\nIds come from listTodaysRecords.',
+      handler: 'js',
+      timeoutMs: 10000,
+      params: {
+        id: {
+          type: 'string',
+          description: 'The record id, e.g. "rec-001".',
+        },
+      },
+      returns: {
+        type: 'FieldRecord',
+        description: 'The record with that id.',
+      },
+    },
   },
 });

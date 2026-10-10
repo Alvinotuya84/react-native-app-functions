@@ -18,13 +18,14 @@ describe('parseConfigSource', () => {
   it('reads defineAppFunctions({...}) without executing it', () => {
     const src = `
       import { defineAppFunctions } from 'react-native-app-functions/config';
-      export default defineAppFunctions({ a: 'x', b: true, c: { d: [\`e\`] }, 'quoted-key': false });
+      export default defineAppFunctions({ a: 'x', b: true, c: { d: [\`e\`] }, 'quoted-key': false, n: 1500 });
     `;
     expect(parse(src)).toEqual({
       'a': 'x',
       'b': true,
       'c': { d: ['e'] },
       'quoted-key': false,
+      'n': 1500,
     });
   });
 
@@ -40,7 +41,7 @@ const desc = 'x';
 export default defineAppFunctions({
   a: desc,
   b: \`t\${desc}\`,
-  c: 1,
+  c: null,
   ...{},
   d,
 });`);
@@ -52,7 +53,7 @@ export default defineAppFunctions({
         /^appfunctions\.config\.ts:5:6: only literal values .*found a template string/
       ),
       expect.stringMatching(
-        /^appfunctions\.config\.ts:6:6: only literal values .*found a number/
+        /^appfunctions\.config\.ts:6:6: only literal values .*found null/
       ),
       expect.stringMatching(
         /^appfunctions\.config\.ts:7:3: only `key: value` properties/

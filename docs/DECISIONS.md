@@ -48,3 +48,10 @@ Short log. Newest at the bottom.
 
 - **Decision:** `generateAppFunctions` is never up to date (`upToDateWhen { false }`). The CLI rewrites only files whose content changed.
 - **Reason:** It follows the CLAUDE.md rule "regenerate on every build", and unchanged output keeps KSP and compilation up to date (verified: an unchanged rebuild leaves `kspDebugKotlin` UP-TO-DATE).
+
+## 2026-10-10: JS handlers via Headless JS driven from the AppFunction service
+
+- **Decision:** Generated code calls `JsBridge` (library), which starts `ReactHost` if needed and runs a Headless JS task through `HeadlessJsTaskContext` (allowed in the foreground). Results return through the Turbo Module (`completeCall`/`failCall`). Arguments and results travel as JSON via generated `org.json` codecs. Handler TS types are derived from `typeof config`. The default timeout is 10 s, configurable with `timeoutMs`.
+- **Alternatives:** `HeadlessJsTaskService` (a started service, subject to Android 12+ background-start limits, no result channel); runtime registration via `handleAppFunction` (Android 17 only, lifecycle-bound); kotlinx.serialization (a new dependency plus a compiler plugin).
+- **Reason:** It works on a cold start and in the foreground, adds no dependencies, and keeps the library module free of the alpha `androidx.appfunctions` dependency (generated code maps failures to AppFunction exceptions). Approved by the author (PLAN.md §7).
+- **Process note:** the JS Kotlin was hand-written as a fixture rather than in the app first, because the generator owns the service file. The first device build then caught a type-inference bug in the hand-written code. Fixture and template were fixed together.

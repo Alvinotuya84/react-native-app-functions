@@ -1,5 +1,6 @@
 import type { AppFunctionsModel, FunctionModel, TypeModel } from '../model';
 import { handlerInterfaceName } from '../validate';
+import { decodeExpr, encodeExpr } from './json';
 import {
   KOTLIN_HEADER,
   importBlock,
@@ -8,20 +9,64 @@ import {
   kotlinType,
 } from './shared';
 
+/** AppFunction exceptions a JS handler can select with `AppFunctionError(code, …)`. */
+const JS_ERROR_EXCEPTIONS: [code: string, exception: string][] = [
+  ['INVALID_ARGUMENT', 'AppFunctionInvalidArgumentException'],
+  ['NOT_FOUND', 'AppFunctionElementNotFoundException'],
+  ['DENIED', 'AppFunctionDeniedException'],
+  ['PERMISSION_REQUIRED', 'AppFunctionPermissionRequiredException'],
+  ['LIMIT_EXCEEDED', 'AppFunctionLimitExceededException'],
+  ['ALREADY_EXISTS', 'AppFunctionElementAlreadyExistsException'],
+];
+
+const hasNative = (m: AppFunctionsModel) =>
+  m.functions.some((f) => f.handler === 'native');
+const hasJs = (m: AppFunctionsModel) =>
+  m.functions.some((f) => f.handler === 'js');
+
 /** `Base<serviceName>.kt`: the `@AppFunctionServiceEntryPoint` class KSP turns into the service. */
 export function serviceFile(m: AppFunctionsModel): string {
+  const native = hasNative(m);
+  const js = hasJs(m);
   const imports = [
     'androidx.annotation.RequiresApi',
     'androidx.appfunctions.AppFunctionAppUnknownException',
     'androidx.appfunctions.AppFunctionDeclaration',
     'androidx.appfunctions.AppFunctionService',
     'androidx.appfunctions.AppFunctionServiceEntryPoint',
-    'kotlinx.coroutines.Dispatchers',
-    'kotlinx.coroutines.withContext',
+    ...(native
+      ? ['kotlinx.coroutines.Dispatchers', 'kotlinx.coroutines.withContext']
+      : []),
+    ...(js
+      ? [
+          ...JS_ERROR_EXCEPTIONS.map(([, e]) => `androidx.appfunctions.${e}`),
+          'io.github.alvinotuya.appfunctions.JsBridge',
+          'kotlin.coroutines.resume',
+          'kotlinx.coroutines.suspendCancellableCoroutine',
+          'kotlinx.coroutines.withTimeoutOrNull',
+          'org.json.JSONObject',
+          'org.json.JSONTokener',
+        ]
+      : []),
+    ...(m.functions.some(
+      (f) => f.handler === 'js' && f.params.some((p) => p.value.list)
+    )
+      ? ['org.json.JSONArray']
+      : []),
     ...kotlinImportsFor(
       m.functions.flatMap((f) => [f.returns, ...f.params.map((p) => p.value)])
     ),
   ];
+  const handlersProperty = native
+    ? `
+  private val handlers: AppFunctionsHandlers
+    get() =
+      applicationContext as? AppFunctionsHandlers
+        ?: throw AppFunctionAppUnknownException(
+          "Application does not implement AppFunctionsHandlers"
+        )
+`
+    : '';
   return `${KOTLIN_HEADER}
 package ${m.kotlinPackage}
 
@@ -37,14 +82,7 @@ ${importBlock(imports)}${kdoc(
   appFunctionXmlFileName = "${m.xmlFileName}",
 )
 abstract class ${m.baseClassName} : AppFunctionService() {
-
-  private val handlers: AppFunctionsHandlers
-    get() =
-      applicationContext as? AppFunctionsHandlers
-        ?: throw AppFunctionAppUnknownException(
-          "Application does not implement AppFunctionsHandlers"
-        )
-${m.functions.map(declaration).join('')}}
+${handlersProperty}${m.functions.map(declaration).join('')}${js ? JS_HELPERS : ''}}
 `;
 }
 
@@ -69,13 +107,62 @@ function declaration(f: FunctionModel): string {
         )
         .join('')}  )`
     : '()';
-  const args = f.params.map((p) => p.name).join(', ');
-  return `
+  const head = `
 ${doc}  @AppFunctionDeclaration(isDescribedByKDoc = true)
-  suspend fun ${f.name}${signature}: ${kotlinType(f.returns)} =
+  suspend fun ${f.name}${signature}: ${kotlinType(f.returns)}`;
+
+  if (f.handler === 'native') {
+    const args = f.params.map((p) => p.name).join(', ');
+    return `${head} =
     withContext(Dispatchers.IO) { handlers.${f.name}Handler.${f.name}(${args}) }
 `;
+  }
+  const puts = f.params
+    .map(
+      (p) =>
+        `    args.put("${p.name}", ${encodeExpr(p.value, p.name, 'AppFunctionsJson.')})\n`
+    )
+    .join('');
+  return `${head} {
+    val args = JSONObject()
+${puts}    val result = callJs("${f.name}", args, ${f.timeoutMs}L)
+    return decodeJsResult("${f.name}") { ${decodeExpr(f.returns, 'result', '"result"', 'AppFunctionsJson.')} }
+  }
+`;
 }
+
+const JS_HELPERS = `
+  /** Runs the JS handler [name] via Headless JS and returns its parsed JSON result. */
+  private suspend fun callJs(name: String, args: JSONObject, timeoutMs: Long): Any? {
+    val result =
+      withTimeoutOrNull(timeoutMs) {
+        suspendCancellableCoroutine<JsBridge.Result> { cont ->
+          val call =
+            JsBridge.call(applicationContext, name, args.toString(), timeoutMs) { cont.resume(it) }
+          cont.invokeOnCancellation { call.cancel() }
+        }
+      }
+        ?: throw AppFunctionAppUnknownException(
+          "JS handler \\"$name\\" did not respond within $timeoutMs ms"
+        )
+    return when (result) {
+      is JsBridge.Result.Success -> JSONTokener(result.json).nextValue()
+      is JsBridge.Result.Failure -> throw jsFailure(result)
+    }
+  }
+
+  private fun jsFailure(failure: JsBridge.Result.Failure): Exception =
+    when (failure.code) {
+${JS_ERROR_EXCEPTIONS.map(([code, e]) => `      "${code}" -> ${e}(failure.message)\n`).join('')}      else -> AppFunctionAppUnknownException(failure.message)
+    }
+
+  private inline fun <T> decodeJsResult(name: String, decode: () -> T): T =
+    try {
+      decode()
+    } catch (e: AppFunctionsJson.InvalidValueException) {
+      throw AppFunctionAppUnknownException("\\"$name\\" returned an invalid value: \${e.message}")
+    }
+`;
 
 /** `<TypeName>.kt`: one `@AppFunctionSerializable` data class. */
 export function typeFile(m: AppFunctionsModel, t: TypeModel): string {
@@ -102,10 +189,11 @@ ${props})
 
 /** `AppFunctionsHandlers.kt`: what the app implements for `native` functions. */
 export function handlersFile(m: AppFunctionsModel): string {
+  const nativeFns = m.functions.filter((f) => f.handler === 'native');
   const imports = kotlinImportsFor(
-    m.functions.flatMap((f) => [f.returns, ...f.params.map((p) => p.value)])
+    nativeFns.flatMap((f) => [f.returns, ...f.params.map((p) => p.value)])
   );
-  const interfaces = m.functions
+  const interfaces = nativeFns
     .map((f) => {
       const params = f.params
         .map((p) => `${p.name}: ${kotlinType(p.value)}`)
@@ -116,7 +204,7 @@ export function handlersFile(m: AppFunctionsModel): string {
 `;
     })
     .join('\n');
-  const props = m.functions
+  const props = nativeFns
     .map((f) => `  val ${f.name}Handler: ${handlerInterfaceName(f.name)}\n`)
     .join('');
   return `${KOTLIN_HEADER}
@@ -133,3 +221,5 @@ ${kdoc(
 ${props}}
 `;
 }
+
+export { hasJs, hasNative };

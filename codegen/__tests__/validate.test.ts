@@ -139,12 +139,32 @@ describe('validation fails loudly, naming the function and field', () => {
     ]);
   });
 
-  it('js handlers (not implemented yet) and missing descriptions', () => {
+  it('missing descriptions and unknown handlers', () => {
     expect(
-      problemsOf(base({ f: { handler: 'js', returns: { type: 'string' } } }))
+      problemsOf(
+        base({ f: { handler: 'python', returns: { type: 'string' } } })
+      )
     ).toEqual([
       'function "f", field "description": required: agents choose functions by their description',
-      'function "f", field "handler": "js" handlers are not supported yet; use "native"',
+      'function "f", field "handler": must be "native" or "js"',
+    ]);
+  });
+
+  it('timeoutMs: js only, whole milliseconds in range', () => {
+    expect(
+      problemsOf(
+        base({
+          a: fn({ timeoutMs: 5000 }),
+          b: fn({ handler: 'js', timeoutMs: 50 }),
+          c: fn({ handler: 'js', timeoutMs: 1.5 }),
+          d: fn({ handler: 'js', timeoutMs: '5000' }),
+        })
+      )
+    ).toEqual([
+      'function "a", field "timeoutMs": only applies to "js" handlers',
+      'function "b", field "timeoutMs": must be a whole number of milliseconds between 100 and 600000',
+      'function "c", field "timeoutMs": must be a whole number of milliseconds between 100 and 600000',
+      'function "d", field "timeoutMs": must be a whole number of milliseconds between 100 and 600000',
     ]);
   });
 
@@ -162,7 +182,7 @@ describe('validation fails loudly, naming the function and field', () => {
     expect(
       problemsOf(base({ f: fn({ retruns: { type: 'string' } }) }))
     ).toEqual([
-      'function "f": unknown key "retruns" (allowed: description, handler, params, returns)',
+      'function "f": unknown key "retruns" (allowed: description, handler, timeoutMs, params, returns)',
     ]);
   });
 
@@ -252,6 +272,75 @@ describe('android resources', () => {
     );
     expect(files.find((f) => f.root === 'manifest')?.contents).not.toContain(
       'app_metadata'
+    );
+  });
+});
+
+describe('js handlers', () => {
+  const types: Config = {
+    Visit: {
+      fields: {
+        id: { type: 'string' },
+        count: { type: 'int' },
+        total: { type: 'long', nullable: true },
+        tags: { type: 'list', of: 'string' },
+        at: { type: 'list', of: 'instant', nullable: true },
+        on: { type: 'localDate', nullable: true },
+        child: { type: 'Child', nullable: true },
+        children: { type: 'list', of: 'Child' },
+      },
+    },
+    Child: { fields: { ok: { type: 'boolean' }, ratio: { type: 'double' } } },
+  };
+  const config = base(
+    {
+      saveVisits: fn({
+        handler: 'js',
+        timeoutMs: 2500,
+        params: {
+          visits: { type: 'list', of: 'Visit' },
+          day: { type: 'localDate' },
+          note: { type: 'string', nullable: true },
+          since: { type: 'instant', nullable: true },
+        },
+        returns: { type: 'list', of: 'Visit', nullable: true },
+      }),
+    },
+    types
+  );
+
+  it('encodes params, calls JsBridge with the timeout, decodes the result', () => {
+    expect(kotlinOf(config, 'BaseMyAppFunctionService.kt')).toMatchSnapshot();
+  });
+
+  it('generates encoders and strict decoders for every type shape', () => {
+    expect(kotlinOf(config, 'AppFunctionsJson.kt')).toMatchSnapshot();
+  });
+
+  it('js-only configs have no handler interfaces and no native dispatch', () => {
+    const files = render(validateConfig(config)).map((f) => f.path);
+    expect(files).not.toContainEqual(
+      expect.stringContaining('AppFunctionsHandlers.kt')
+    );
+    const service = kotlinOf(config, 'BaseMyAppFunctionService.kt');
+    expect(service).not.toContain('AppFunctionsHandlers');
+    expect(service).not.toContain('Dispatchers');
+    expect(service).toContain('callJs("saveVisits", args, 2500L)');
+  });
+
+  it('defaults timeoutMs to 10000', () => {
+    expect(
+      kotlinOf(
+        base({ f: fn({ handler: 'js' }) }),
+        'BaseMyAppFunctionService.kt'
+      )
+    ).toContain('callJs("f", args, 10000L)');
+  });
+
+  it('native-only configs do not generate the JSON codec', () => {
+    const files = render(validateConfig(base({ f: fn() }))).map((f) => f.path);
+    expect(files).not.toContainEqual(
+      expect.stringContaining('AppFunctionsJson.kt')
     );
   });
 });
