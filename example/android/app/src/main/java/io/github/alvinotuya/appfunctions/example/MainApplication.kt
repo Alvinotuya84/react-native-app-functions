@@ -6,8 +6,12 @@ import com.facebook.react.ReactApplication
 import com.facebook.react.ReactHost
 import com.facebook.react.ReactNativeApplicationEntryPoint.loadReactNative
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
+import io.github.alvinotuya.appfunctions.example.appfunctions.FieldAppFunctionsHandlers
+import io.github.alvinotuya.appfunctions.example.appfunctions.ListTodaysRecordsHandler
 
-class MainApplication : Application(), ReactApplication {
+class MainApplication : Application(), ReactApplication, FieldAppFunctionsHandlers {
+
+  override val listTodaysRecordsHandler: ListTodaysRecordsHandler = DummyListTodaysRecordsHandler
 
   override val reactHost: ReactHost by lazy {
     getDefaultReactHost(

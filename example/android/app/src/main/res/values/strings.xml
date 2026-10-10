@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">AppFunctionsExample</string>
+    <string name="app_function_display_description">Lets assistants read today\'s field records</string>
 </resources>

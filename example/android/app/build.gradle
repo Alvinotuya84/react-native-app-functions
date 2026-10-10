@@ -1,6 +1,7 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+apply plugin: "com.google.devtools.ksp"
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -111,9 +112,18 @@ dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
 
+    // AppFunctions: runtime + KSP compiler (generates the service class and schema XML)
+    implementation("androidx.appfunctions:appfunctions:${rootProject.ext.appFunctionsVersion}")
+    ksp("androidx.appfunctions:appfunctions-compiler:${rootProject.ext.appFunctionsVersion}")
+
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {
         implementation jscFlavor
     }
+}
+
+// Merge every module's @AppFunctionDeclaration functions into this app's inventory.
+ksp {
+    arg("appfunctions:aggregateAppFunctions", "true")
 }
