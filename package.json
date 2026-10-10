@@ -45,14 +45,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/AlvinOtuya/react-native-app-functions.git"
+    "url": "git+https://github.com/Alvinotuya84/react-native-app-functions.git"
   },
-  "author": "Alvin Otuya <otuyaalvin@gmail.com> (https://github.com/AlvinOtuya)",
+  "author": "Alvin Otuya <otuyaalvin@gmail.com> (https://github.com/Alvinotuya84)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/AlvinOtuya/react-native-app-functions/issues"
+    "url": "https://github.com/Alvinotuya84/react-native-app-functions/issues"
   },
-  "homepage": "https://github.com/AlvinOtuya/react-native-app-functions#readme",
+  "homepage": "https://github.com/Alvinotuya84/react-native-app-functions#readme",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
