@@ -55,3 +55,9 @@ Short log. Newest at the bottom.
 - **Alternatives:** `HeadlessJsTaskService` (a started service, subject to Android 12+ background-start limits, no result channel); runtime registration via `handleAppFunction` (Android 17 only, lifecycle-bound); kotlinx.serialization (a new dependency plus a compiler plugin).
 - **Reason:** It works on a cold start and in the foreground, adds no dependencies, and keeps the library module free of the alpha `androidx.appfunctions` dependency (generated code maps failures to AppFunction exceptions). Approved by the author (PLAN.md §7).
 - **Process note:** the JS Kotlin was hand-written as a fixture rather than in the app first, because the generator owns the service file. The first device build then caught a type-inference bug in the hand-written code. Fixture and template were fixed together.
+
+## 2026-10-10: First npm release as `0.1.0-alpha.0` on the `alpha` dist-tag
+
+- **Decision:** Publish `0.1.0-alpha.0` with `publishConfig.tag = "alpha"` and public access, before the auth gate, so the public can validate the approach. The README carries a prominent warning to expose only read-only, non-sensitive data.
+- **Alternatives:** `0.1.0` on `latest`, which is easier to install but uses up 0.1.0 and looks more finished than it is; waiting for Phase 4.
+- **Reason:** Author's choice: gather feedback first, then build auth. The packed tarball was validated in a fresh RN 0.87.1 app before release (see VERIFIED.md).

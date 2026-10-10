@@ -147,6 +147,21 @@ Source: our own build of `example/` and emulator runs. Logs and commands are in 
 | `suspendCancellableCoroutine` inside `withTimeoutOrNull` needs an explicit type argument (`<JsBridge.Result>`), or Kotlin infers `Nothing?`. | 2026-10-10 |
 | Derived TS handler types reject wrong return field types, unknown argument names and unknown function names (probe compiled with `tsc`). | 2026-10-10 |
 
+## Google's AppFunctions Testing Agent (SAMPLE `agent/`, 2026-10-10)
+
+| Fact | Checked |
+|---|---|
+| It builds with `./gradlew :app:assembleStandardDebug` (AGP 9.3.2, appfunctions alpha11) and lists and executes our example's `findRecord` and `listTodaysRecords` on the Android 17 emulator. | 2026-10-10 |
+| `run_privileged.sh` / `startAppFunctionTestingAgent` fail on the Android 17 emulator: they take the "fingerprint" from `dumpsys package … PackageSignatures` (a 7-char hash), but `cmd allowlist` needs the SHA-256 certificate digest. Workaround: `apksigner verify --print-certs <apk>` → `adb shell cmd allowlist add-package-with-metadata-multimap 2 com.example.appfunctions.agent:<sha256> android.allowlist.metadata.key.APP_FUNCTION_TYPE_DOWNLOADED:boolean:true "'*'" ignore:string:default`, then `cmd app_function flush-allowlist-changes` and `am instrument -w com.example.appfunctions.agent/.ShellIdentityInstrumentation`. | 2026-10-10 |
+
+## Consumer validation (packed tarball, 2026-10-10)
+
+| Fact | Checked |
+|---|---|
+| Fresh `@react-native-community/cli init --version 0.87.1 --pm npm` app + `npm install react-native-app-functions-0.1.0.tgz` (45 files, 28.8 kB), set up by following README steps only: the debug and release builds succeed. The codegen runs from `node_modules`, and `typescript` resolves from the package's dependency. No warnings from the library. | 2026-10-10 |
+| In the consumer app, `tsc --noEmit` passes with the handler types from the published `lib/typescript` (`react-native-app-functions/config` export); a wrong return type is rejected. | 2026-10-10 |
+| Android 17 emulator, consumer release APK: both functions listed (7 descriptions). Cold native `listTodaysVisits`, cold JS `getVisit` and JS `NOT_FOUND` (code 1500) all behave as in the example app. | 2026-10-10 |
+
 ## Local machine (2026-10-10)
 
 - JDK 17.0.14. Android SDK platform `android-37.0` and build-tools 37.0.0 installed (2026-10-10). `adb` present.

@@ -1,7 +1,7 @@
 {
   "name": "react-native-app-functions",
-  "version": "0.1.0",
-  "description": "Expose React Native app functionality to on-device AI agents via Android AppFunctions",
+  "version": "0.1.0-alpha.0",
+  "description": "Expose React Native app functionality to on-device AI agents (Gemini and others) through Android AppFunctions, declared from TypeScript.",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
   "exports": {
@@ -27,6 +27,7 @@
     "react-native.config.js",
     "codegen/lib",
     "versions.json",
+    "CHANGELOG.md",
     "!ios/build",
     "!android/build",
     "!android/gradle",
@@ -48,8 +49,18 @@
   },
   "keywords": [
     "react-native",
-    "ios",
-    "android"
+    "android",
+    "appfunctions",
+    "app-functions",
+    "ai",
+    "agents",
+    "ai-agents",
+    "gemini",
+    "llm",
+    "mcp",
+    "tools",
+    "headless-js",
+    "kotlin"
   ],
   "repository": {
     "type": "git",
@@ -62,7 +73,9 @@
   },
   "homepage": "https://github.com/Alvinotuya84/react-native-app-functions#readme",
   "publishConfig": {
-    "registry": "https://registry.npmjs.org/"
+    "registry": "https://registry.npmjs.org/",
+    "tag": "alpha",
+    "access": "public"
   },
   "devDependencies": {
     "@eslint/compat": "^2.1.0",
@@ -87,6 +100,9 @@
   "peerDependencies": {
     "react": "*",
     "react-native": "*"
+  },
+  "engines": {
+    "node": ">= 22.13"
   },
   "workspaces": [
     "example"
