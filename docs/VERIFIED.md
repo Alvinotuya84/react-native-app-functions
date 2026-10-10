@@ -116,12 +116,16 @@ Source: our own build of `example/` and emulator runs. Logs and commands are in 
 | Latency (native path, emulator, includes adb overhead): **cold (force-stopped) ≈ 0.7–1.0 s**, warm ≈ 70 ms. | 2026-10-10 |
 | **Android 16.0 emulator** (`android-36` google_apis_playstore, build `BE2A.250530.026.D1`, SDK 36.0): the `app_function` service exists, but `cmd app_function` prints "No shell command implementation". `dumpsys app_function` shows only legacy-format (`schemaName`/`schemaCategory`) functions. Our app is **not indexed**; logcat shows `AppSearchAppsUtil: buildAppFunctionMetadataFromPackageInfo: Failed to get property … NameNotFoundException`. | 2026-10-10 |
 | Below Android 16 (API 31 emulator): the app installs, launches and keeps running with no crash, so the AppFunctions dependency and service are inert there. | 2026-10-10 |
+| **Android 16 support needs the v1 index file too.** AOSP AppSearch `service/java/com/android/server/appsearch/appsindexer/AppsUtil.java` (branch `android16-release`, https://android.googlesource.com/platform/packages/modules/AppSearch/) reads service property `android.app.appfunctions.v2` only when the package defines a dynamic schema; otherwise it reads `android.app.appfunctions` (the v1 XML). On `main` only `android.app.appfunctions` is read in that path. | 2026-10-10 |
+| KSP option `appfunctions:generateV1Xml=true` makes the compiler also write `assets/<appFunctionXmlFileName>-v1.xml`, the legacy v1 index (`AppFunctionLegacySchemaXmlGenerator`, alpha13 compiler sources). The file holds only `function_id` + `enabled_by_default`, with no descriptions or parameter schema. | 2026-10-10 |
+| With `generateV1Xml` + a service `<property android:name="android.app.appfunctions" android:value="field_app_functions-v1.xml"/>` alongside the v2 property: **Android 16.0** (`BE2A.250530.026.D1`) indexes the function (seen in `dumpsys app_function`; no `cmd` tool there, so execution is unverified). **Android 16 QPR / 36.1** (`BE4B.251210.005`, AVD `AppFunctions_API_36_1`) lists the full v2 metadata with descriptions and executes cold. **Android 17** is unchanged (lists with descriptions, executes cold). | 2026-10-10 |
+| On 36.1, `list-app-functions` does **not** accept `--package`; filter the JSON yourself. | 2026-10-10 |
 | SDK package IDs are minor-versioned: `platforms;android-37.0` (not `android-37`). | 2026-10-10 |
 
 ## Local machine (2026-10-10)
 
 - JDK 17.0.14. Android SDK platform `android-37.0` and build-tools 37.0.0 installed (2026-10-10). `adb` present.
-- AVDs: `AppFunctions_API_37` (Android 17, created 2026-10-10, use this one for AppFunctions), `Pixel_9`/`Pixel_7`/`Pixel_9_Pro` (Android 16.0), `Medium_Phone_API_36.0` (**actually runs API 31** despite its name).
+- AVDs: `AppFunctions_API_37` (Android 17) and `AppFunctions_API_36_1` (Android 16 QPR), both created 2026-10-10 for AppFunctions testing; `Pixel_9`/`Pixel_7`/`Pixel_9_Pro` (Android 16.0), `Medium_Phone_API_36.0` (**actually runs API 31** despite its name).
 - nvm has Node 22.11.0 and 24.14.1. Repo `.nvmrc` = 24.14.1. The nvm default alias is still 22.11.0, so run `nvm use` in each shell.
 
 ## Open questions
@@ -133,5 +137,5 @@ Source: our own build of `example/` and emulator runs. Logs and commands are in 
 5. **AGP 9 + Expo modules plugin.** Deferred: Expo was not chosen for the scaffold. Revisit when adding the Expo wrapper.
 6. ~~JSON shape of `execute-app-function` output~~: captured (see Phase 1 table).
 7. **`AppFunctionTestRule` with the entry-point pattern.** Its KDoc is outdated, and it's unclear whether it supports `@AppFunctionServiceEntryPoint` classes.
-8. **Android 16.0 / 16 QPR support (important).** On the Android 16.0 emulator our alpha13 app isn't indexed. That platform build only reads the legacy format, and the docs don't say which platform release introduced the `android.app.appfunctions.v2` property. The compiler has undocumented options `appfunctions:generateV1Xml` and `appfunctions:generateMetadataFromSchema` that may target older indexers. Next steps: try the `android-36.1` emulator image, and ask whether real Android 16 devices with recent updates behave like 36.0 or like 37.
+8. **Android 16.0 execution.** It's now indexed via the v1 file (see table), but there's no `cmd app_function` on 16.0, so execution there is unverified. The v1 index also has no descriptions or parameter schema, so it's unclear what an agent on 16.0 sees. Next: verify with the in-app harness (Phase 4) or a real device. `generateV1Xml` and the v1 property are not in the official docs; we rely on the AOSP and compiler source.
 9. **Consumer impact.** The AGP 9.1 / compileSdk 37 floor means consumer apps need RN ≥ 0.87 (or Expo SDK ≥ 58). Check the field-agent app's RN version.

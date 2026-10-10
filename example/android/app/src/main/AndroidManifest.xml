@@ -38,6 +38,10 @@
         <property
           android:name="android.app.appfunctions.v2"
           android:value="field_app_functions.xml" />
+        <!-- Legacy (v1) indexer, e.g. Android 16.0 -->
+        <property
+          android:name="android.app.appfunctions"
+          android:value="field_app_functions-v1.xml" />
         <intent-filter>
           <action android:name="android.app.appfunctions.AppFunctionService" />
         </intent-filter>

@@ -45,7 +45,7 @@ Steps:
    - `BaseFieldAppFunctionService`: `@RequiresApi(36)`, `@AppFunctionServiceEntryPoint(serviceName = "FieldAppFunctionService", appFunctionXmlFileName = "field_app_functions")`, extends `AppFunctionService`.
    - `@AppFunctionDeclaration(isDescribedByKDoc = true) suspend fun listTodaysRecords(): List<FieldRecord>`, run on `Dispatchers.IO` and delegating to a `ListTodaysRecordsHandler` that the service gets from `applicationContext` (the documented service-locator pattern). `MainApplication` implements it with dummy data. That path never touches React Native or JS.
    - `@AppFunctionSerializable(isDescribedByKDoc = true) data class FieldRecord(id, title, status, scheduledAt: LocalDateTime?)` with inline KDoc per property.
-4. Manifest: `<service>` for the generated `FieldAppFunctionService` (permission, exported, two `<property>`s, intent-filter, `tools:targetApi="36"`), plus the `app_metadata` property and `res/xml/app_metadata.xml`.
+4. Manifest: `<service>` for the generated `FieldAppFunctionService` (permission, exported, `schema` + `v2` + legacy `android.app.appfunctions` (v1) properties, intent-filter, `tools:targetApi="36"`), plus the `app_metadata` property and `res/xml/app_metadata.xml`. KSP arg `appfunctions:generateV1Xml=true` produces the v1 file Android 16 needs.
 5. Copy the Kotlin and manifest snippet into `codegen/__fixtures__/handwritten/` in Phase 2, when that folder exists.
 
 **Verification (needs an Android 16+ device or emulator; you run it):**
@@ -61,12 +61,106 @@ Expected: JSON containing three dummy records. Also install on an API ≤ 35 emu
 
 ## 4. Later phases (high level)
 
-**Phase 2: codegen reproduces Phase 1.**
-- `defineAppFunctions({...})` in `example/appfunctions.config.ts`, parsed statically with the TypeScript compiler API. Only literal object expressions are accepted, and app code is never executed.
-- Validate types against the serializable list, failing loudly with the function and field name. Render templates into `example/android/app/build/generated/appfunctions/` and register that as a source dir.
-- Entry point: a Node CLI (`react-native-app-functions codegen`) invoked by a Gradle task that `preBuild` depends on, so it runs before KSP on every build. The library ships an `appfunctions.gradle` script for the app to `apply from:`. Manifest entries are emitted as a generated manifest merged by AGP, not by editing the app's manifest.
-- Done when the generated output diffs clean against `__fixtures__/handwritten/` (modulo the GENERATED header), and the hand-written files are deleted.
-- Tests: Jest snapshot (config → Kotlin) and type-mapping unit tests.
+**Phase 2: codegen reproduces Phase 1.** Detailed plan in section 6.
+
+## 6. Phase 2 detailed plan (proposed 2026-10-10, awaiting approval)
+
+### 6.1 Config (public API, needs approval)
+
+`example/appfunctions.config.ts`, imported from a `react-native-app-functions/config` subpath so the RN runtime bundle never pulls in codegen:
+
+```ts
+import { defineAppFunctions } from 'react-native-app-functions/config';
+
+export default defineAppFunctions({
+  android: {
+    kotlinPackage: 'io.github.alvinotuya.appfunctions.example.appfunctions',
+    serviceName: 'FieldAppFunctionService',        // generated: Base<serviceName> + <serviceName>
+    appDescription: 'Field-agent app holding …',   // → app_metadata.xml
+    appDisplayDescription: "Lets assistants read today's field records",
+  },
+  types: {
+    FieldRecord: {
+      description: 'A field record scheduled for the current day.',
+      fields: {
+        id:          { type: 'string', description: 'The unique identifier of the record.' },
+        title:       { type: 'string', description: '…' },
+        status:      { type: 'string', description: '…' },
+        scheduledAt: { type: 'localDateTime', nullable: true, description: '…' },
+      },
+    },
+  },
+  functions: {
+    listTodaysRecords: {
+      description: 'Lists the field records scheduled for today …',
+      handler: 'native',
+      params: {},
+      returns: { type: 'list', of: 'FieldRecord', description: "Today's field records. …" },
+    },
+  },
+});
+```
+
+- `defineAppFunctions` is an identity function that gives editor types. The codegen **never executes** the file: it parses it with the TypeScript compiler API and accepts only literals (object, string, boolean, array). Anything else (variables, calls, spreads, template expressions) fails the build with the file:line.
+- v0 type vocabulary: `string`, `int`, `long`, `double`, `boolean`, `localDateTime`, `instant`, `localDate`, a named type from `types`, and `{ type: 'list', of: <any of those> }`. Every field can be `nullable`. Anything else fails the build with `function "<fn>", field "<path>": <reason>`. More types come later (`VERIFIED.md` lists what AppFunctions supports).
+
+### 6.2 What gets generated (into `app/build/generated/appfunctions/<variant>/`)
+
+| Output | Content | Wired via (AGP 9.2.1 Variant API, verified in source) |
+|---|---|---|
+| `kotlin/.../Base<Service>.kt` | `@AppFunctionServiceEntryPoint` abstract service. One `@AppFunctionDeclaration(isDescribedByKDoc = true)` per function, with KDoc from config, running on `Dispatchers.IO` and calling the handler. | `sources.kotlin.addGeneratedSourceDirectory` |
+| `kotlin/.../Types.kt` | `@AppFunctionSerializable(isDescribedByKDoc = true)` data classes with inline KDoc | same |
+| `kotlin/.../Handlers.kt` | `fun interface <Fn>Handler` per native function, plus an `AppFunctionsHandlers` interface the app's `Application` implements | same |
+| `AndroidManifest.xml` | the `<service>` (v2 **and** v1 properties) + the `app_metadata` property | `sources.manifests.addGeneratedManifestFile` |
+| `res/xml/app_metadata.xml`, `res/values/appfunctions_strings.xml` | app-level description | `sources.res.addGeneratedSourceDirectory` |
+
+The function ID stays `<kotlinPackage>.Base<serviceName>#<function>`, matching Phase 1. The app keeps only its own code: the handler implementation and `MainApplication implements AppFunctionsHandlers`.
+
+### 6.3 Build integration (bare RN first)
+
+- The library ships `android/appfunctions.gradle`. A consumer app adds one line to `app/build.gradle`: `apply from: "../../node_modules/react-native-app-functions/android/appfunctions.gradle"`. This is the same pattern as react-native-vector-icons' `fonts.gradle`.
+- The script:
+  - adds `appfunctions` + `ksp(appfunctions-compiler)` and the KSP args `aggregateAppFunctions` + `generateV1Xml`;
+  - registers `generate<Variant>AppFunctions` (runs `node <lib>/codegen/lib/cli.js --config <appRoot>/appfunctions.config.ts --out <dir>`), with the config file as a declared input so Gradle reruns it only on change;
+  - wires the outputs in with the Variant API above, so ordering before KSP comes from the task graph instead of hand-written `dependsOn`.
+- The consumer still applies the KSP Gradle plugin itself, because a script plugin can't add buildscript classpath entries. The README will say so.
+- **One version pin:** `versions.json` at the library root (`appfunctions`, `ksp`). Gradle reads it with `JsonSlurper`, and the Node side imports it.
+
+### 6.4 Codegen package layout
+
+```
+codegen/
+  src/cli.ts            args → parse → validate → render → write (only rewrites files whose content changed)
+  src/parse.ts          TS compiler API, literal-only extraction
+  src/model.ts          validated IR
+  src/validate.ts       type mapping + loud errors
+  src/render.ts         IR → files
+  src/templates/        all Kotlin/XML templates (alpha upgrades touch only here + versions.json)
+  __fixtures__/handwritten/   Phase 1 files moved here (diff target)
+  __tests__/            parse, validate, render (render == fixture), CLI end to end
+  tsconfig.json         compiled with tsc to codegen/lib (no runtime TS loader needed)
+src/config.ts           defineAppFunctions + config types (the `./config` export)
+```
+
+### 6.5 Dependencies (needs approval)
+
+- `typescript`: move from devDependencies to **dependencies** (already approved).
+- **New:** `jest` + `@types/jest` as root devDependencies for the codegen tests. The scaffold only put a Jest preset in `example/`. Tests run through the existing Babel config, so no `ts-jest`.
+
+### 6.6 Steps
+
+1. **Spike first (half a day max):** confirm KSP processes Kotlin added via `sources.kotlin.addGeneratedSourceDirectory`. KSP must see generated sources; this isn't documented. If not, fall back to `android.sourceSets.main.kotlin.srcDir(taskOutput)` + `dependsOn`.
+2. Move Phase 1 files into `codegen/__fixtures__/handwritten/`.
+3. Parser + validator + tests (including error-message tests).
+4. Templates + renderer: the render test asserts generated == fixture, modulo the `// GENERATED — do not edit` header.
+5. CLI + `appfunctions.gradle` + `versions.json`. Switch the example to `apply from`, then delete the hand-written Kotlin, manifest service block and `app_metadata.xml` from `example/`.
+6. Verify: clean build, APK contains both XMLs, Android 17 and 36.1 list + cold execute, and API 31 launches.
+
+### 6.7 Done when
+
+- The example has no hand-written AppFunctions code except its handler and `MainApplication`, and verification step 6 passes.
+- Unsupported config fails the build with a message naming the function and field.
+- `yarn test` passes, and the render test proves the generator reproduces Phase 1.
 
 **Phase 3: `handler: "js"` via Headless JS.**
 - Generated body calls `JsBridge.invoke(name, argsJson)`. `JsBridge` starts a headless task, waits on a `CompletableDeferred`, and wraps it in `withTimeout`. It maps JS errors and timeouts to `AppFunctionAppUnknownException` / `AppFunctionCancelledException`.

@@ -126,4 +126,7 @@ dependencies {
 // Merge every module's @AppFunctionDeclaration functions into this app's inventory.
 ksp {
     arg("appfunctions:aggregateAppFunctions", "true")
+    // Also emit <appFunctionXmlFileName>-v1.xml for the legacy (v1) AppSearch indexer used by
+    // Android 16 builds; it is read via the "android.app.appfunctions" service property.
+    arg("appfunctions:generateV1Xml", "true")
 }
