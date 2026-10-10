@@ -6,9 +6,8 @@ buildscript {
         targetSdkVersion = 36
         ndkVersion = "27.1.12297006"
         kotlinVersion = "2.2.0"
-        // AppFunctions is alpha: pin exact versions here (single place for the example app).
-        appFunctionsVersion = "1.0.0-alpha13"
-        kspVersion = "2.3.12"
+        // KSP version pinned with the AppFunctions version in the library's versions.json.
+        kspVersion = new groovy.json.JsonSlurper().parse(file("../../versions.json")).ksp
     }
     repositories {
         google()

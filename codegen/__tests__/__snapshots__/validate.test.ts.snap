@@ -1,0 +1,71 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`functions with params renders the declaration with KDoc, optional params defaulting to null 1`] = `
+"// GENERATED — do not edit. Source: appfunctions.config.ts (react-native-app-functions).
+package com.example.app.appfunctions
+
+import androidx.annotation.RequiresApi
+import androidx.appfunctions.AppFunctionAppUnknownException
+import androidx.appfunctions.AppFunctionDeclaration
+import androidx.appfunctions.AppFunctionService
+import androidx.appfunctions.AppFunctionServiceEntryPoint
+import java.time.LocalDate
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+/**
+ * AppFunctions entry point. KSP generates the concrete \`MyAppFunctionService\` subclass and
+ * \`assets/my_app_function_service.xml\` (plus \`my_app_function_service-v1.xml\`) from this class.
+ */
+@RequiresApi(36)
+@AppFunctionServiceEntryPoint(
+  serviceName = "MyAppFunctionService",
+  appFunctionXmlFileName = "my_app_function_service",
+)
+abstract class BaseMyAppFunctionService : AppFunctionService() {
+
+  private val handlers: AppFunctionsHandlers
+    get() =
+      applicationContext as? AppFunctionsHandlers
+        ?: throw AppFunctionAppUnknownException(
+          "Application does not implement AppFunctionsHandlers"
+        )
+
+  /**
+   * Searches records.
+   *
+   * @param query Free text.
+   * @param since Earliest date.
+   * @return Matching ids.
+   */
+  @AppFunctionDeclaration(isDescribedByKDoc = true)
+  suspend fun searchRecords(
+    query: String,
+    limit: Int? = null,
+    since: LocalDate? = null,
+  ): List<String> =
+    withContext(Dispatchers.IO) { handlers.searchRecordsHandler.searchRecords(query, limit, since) }
+}
+"
+`;
+
+exports[`functions with params renders the handler interface 1`] = `
+"// GENERATED — do not edit. Source: appfunctions.config.ts (react-native-app-functions).
+package com.example.app.appfunctions
+
+import java.time.LocalDate
+
+/** Native implementation of the \`searchRecords\` AppFunction, provided by the app. */
+fun interface SearchRecordsHandler {
+  suspend fun searchRecords(query: String, limit: Int?, since: LocalDate?): List<String>
+}
+
+/**
+ * Implemented by the app's [android.app.Application] so the AppFunction service can reach the
+ * handlers without depending on React Native or a DI framework.
+ */
+interface AppFunctionsHandlers {
+  val searchRecordsHandler: SearchRecordsHandler
+}
+"
+`;

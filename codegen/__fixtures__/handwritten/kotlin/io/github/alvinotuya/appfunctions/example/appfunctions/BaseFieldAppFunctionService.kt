@@ -1,3 +1,4 @@
+// GENERATED — do not edit. Source: appfunctions.config.ts (react-native-app-functions).
 package io.github.alvinotuya.appfunctions.example.appfunctions
 
 import androidx.annotation.RequiresApi
@@ -9,21 +10,21 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Hand-written Phase 1 reference. KSP generates the concrete `FieldAppFunctionService` subclass
- * and `assets/field_app_functions.xml` from this class.
+ * AppFunctions entry point. KSP generates the concrete `FieldAppFunctionService` subclass and
+ * `assets/field_app_function_service.xml` (plus `field_app_function_service-v1.xml`) from this class.
  */
 @RequiresApi(36)
 @AppFunctionServiceEntryPoint(
   serviceName = "FieldAppFunctionService",
-  appFunctionXmlFileName = "field_app_functions",
+  appFunctionXmlFileName = "field_app_function_service",
 )
 abstract class BaseFieldAppFunctionService : AppFunctionService() {
 
-  private val handlers: FieldAppFunctionsHandlers
+  private val handlers: AppFunctionsHandlers
     get() =
-      applicationContext as? FieldAppFunctionsHandlers
+      applicationContext as? AppFunctionsHandlers
         ?: throw AppFunctionAppUnknownException(
-          "Application does not implement FieldAppFunctionsHandlers"
+          "Application does not implement AppFunctionsHandlers"
         )
 
   /**

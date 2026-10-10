@@ -1,0 +1,125 @@
+// react-native-app-functions: generates AppFunctions sources from appfunctions.config.ts and wires
+// them into the app module's build.
+//
+// Usage, in android/app/build.gradle, after `apply plugin: "com.google.devtools.ksp"`:
+//   apply from: "../../node_modules/react-native-app-functions/android/appfunctions.gradle"
+//
+// Optional Gradle properties:
+//   appFunctionsAppRoot         directory containing appfunctions.config.ts (default: android/..)
+//   appFunctionsNodeExecutable  node binary used to run the codegen (default: "node")
+
+import groovy.json.JsonSlurper
+import javax.inject.Inject
+
+def appFunctionsLibDir = buildscript.sourceFile.parentFile.parentFile
+def appFunctionsVersions = new JsonSlurper().parse(new File(appFunctionsLibDir, "versions.json"))
+
+if (!project.plugins.hasPlugin("com.google.devtools.ksp")) {
+    throw new GradleException(
+        "react-native-app-functions: apply the KSP Gradle plugin (\"com.google.devtools.ksp\", " +
+        "tested with ${appFunctionsVersions.ksp}) in ${project.path} before applying appfunctions.gradle."
+    )
+}
+
+def appFunctionsAppRoot = project.hasProperty("appFunctionsAppRoot")
+    ? project.file(project.property("appFunctionsAppRoot"))
+    : project.rootProject.projectDir.parentFile
+
+dependencies {
+    implementation "androidx.appfunctions:appfunctions:${appFunctionsVersions.appfunctions}"
+    ksp "androidx.appfunctions:appfunctions-compiler:${appFunctionsVersions.appfunctions}"
+}
+
+ksp {
+    // Merge every module's AppFunctions into this app's inventory.
+    arg("appfunctions:aggregateAppFunctions", "true")
+    // Also emit <name>-v1.xml for the legacy indexer used by Android 16 builds.
+    arg("appfunctions:generateV1Xml", "true")
+}
+
+abstract class GenerateAppFunctionsTask extends DefaultTask {
+    @InputFile @PathSensitive(PathSensitivity.NONE)
+    abstract RegularFileProperty getConfigFile()
+
+    // Not @InputDirectory: a missing build should fail in the action with a useful message.
+    @InputFiles @PathSensitive(PathSensitivity.RELATIVE)
+    abstract ConfigurableFileCollection getCodegenFiles()
+
+    @Internal
+    abstract DirectoryProperty getCodegenDir()
+
+    @Input
+    abstract Property<String> getNodeExecutable()
+
+    @OutputDirectory
+    abstract DirectoryProperty getKotlinOutputDir()
+
+    @OutputDirectory
+    abstract DirectoryProperty getResOutputDir()
+
+    // Location is assigned by AGP (addGeneratedManifestFile): build/generated/manifests/<task>/.
+    @OutputFile
+    abstract RegularFileProperty getManifestFile()
+
+    @Inject
+    abstract ExecOperations getExecOperations()
+
+    @TaskAction
+    void generate() {
+        def cli = codegenDir.file("cli.js").get().asFile
+        if (!cli.exists()) {
+            throw new GradleException(
+                "react-native-app-functions: codegen not built (${cli} is missing). " +
+                "Run `yarn prepare` in the react-native-app-functions package."
+            )
+        }
+        def stderr = new ByteArrayOutputStream()
+        def result = execOperations.exec {
+            it.commandLine(
+                nodeExecutable.get(), cli.absolutePath,
+                "--config", configFile.get().asFile.absolutePath,
+                "--kotlin-out", kotlinOutputDir.get().asFile.absolutePath,
+                "--res-out", resOutputDir.get().asFile.absolutePath,
+                "--manifest-out", manifestFile.get().asFile.parentFile.absolutePath,
+            )
+            it.errorOutput = stderr
+            it.ignoreExitValue = true
+        }
+        if (result.exitValue != 0) {
+            throw new GradleException(stderr.toString().trim())
+        }
+    }
+}
+
+def appFunctionsConfigFile = new File(appFunctionsAppRoot, "appfunctions.config.ts")
+def appFunctionsCodegenDir = new File(appFunctionsLibDir, "codegen/lib")
+
+def generateAppFunctions = tasks.register("generateAppFunctions", GenerateAppFunctionsTask) { t ->
+    t.group = "react-native-app-functions"
+    t.description = "Generates AppFunctions Kotlin, manifest and resources from appfunctions.config.ts."
+    t.configFile.set(appFunctionsConfigFile)
+    t.codegenDir.set(appFunctionsCodegenDir)
+    t.codegenFiles.from(appFunctionsCodegenDir)
+    t.nodeExecutable.set((project.findProperty("appFunctionsNodeExecutable") ?: "node").toString())
+    t.kotlinOutputDir.set(layout.buildDirectory.dir("generated/appfunctions/kotlin"))
+    t.resOutputDir.set(layout.buildDirectory.dir("generated/appfunctions/res"))
+    // Generated code is output: regenerate on every build. The codegen only rewrites files whose
+    // content changed, so unchanged output does not invalidate KSP or compilation.
+    t.outputs.upToDateWhen { false }
+}
+
+// KSP must see the generated @AppFunctionServiceEntryPoint class. It does not process sources
+// added via the AGP Variant API under RN's android.builtInKotlin=false (see docs/DECISIONS.md),
+// so the Kotlin goes into the Kotlin "main" source set. The provider carries the task dependency.
+kotlin {
+    sourceSets.named("main") {
+        it.kotlin.srcDir(generateAppFunctions.flatMap { it.kotlinOutputDir })
+    }
+}
+
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        variant.sources.res?.addGeneratedSourceDirectory(generateAppFunctions, { it.resOutputDir })
+        variant.sources.manifests.addGeneratedManifestFile(generateAppFunctions, { it.manifestFile })
+    }
+}

@@ -6,10 +6,10 @@ import com.facebook.react.ReactApplication
 import com.facebook.react.ReactHost
 import com.facebook.react.ReactNativeApplicationEntryPoint.loadReactNative
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
-import io.github.alvinotuya.appfunctions.example.appfunctions.FieldAppFunctionsHandlers
+import io.github.alvinotuya.appfunctions.example.appfunctions.AppFunctionsHandlers
 import io.github.alvinotuya.appfunctions.example.appfunctions.ListTodaysRecordsHandler
 
-class MainApplication : Application(), ReactApplication, FieldAppFunctionsHandlers {
+class MainApplication : Application(), ReactApplication, AppFunctionsHandlers {
 
   override val listTodaysRecordsHandler: ListTodaysRecordsHandler = DummyListTodaysRecordsHandler
 

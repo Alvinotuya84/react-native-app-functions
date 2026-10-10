@@ -27,3 +27,24 @@ Short log. Newest at the bottom.
 ## 2026-10-10: `typescript` allowed as a codegen dependency
 
 - **Decision:** Codegen may parse `appfunctions.config.ts` with the TypeScript compiler API (static, no code execution). Approved by the author. To be added in Phase 2.
+
+## 2026-10-10: Generated Kotlin goes into the Kotlin `main` source set, not the Variant API
+
+- **Decision:** `appfunctions.gradle` registers one `generateAppFunctions` task and adds its Kotlin output via `kotlin.sourceSets.main.kotlin.srcDir(task.flatMap { it.outputDir })`. The generated manifest and resources use the AGP Variant API (`addGeneratedManifestFile`, `sources.res.addGeneratedSourceDirectory`).
+- **Alternatives:** `variant.sources.kotlin.addGeneratedSourceDirectory`. It's cleaner, but the spike showed KSP ignores those sources under RN 0.87's `builtInKotlin=false`.
+- **Reason:** KSP must see the generated `@AppFunctionServiceEntryPoint` class. Revisit when RN drops the built-in-Kotlin opt-out (AGP 10).
+
+## 2026-10-10: Phase 2 approvals
+
+- Config format (PLAN.md §6.1), adding `jest` + `@types/jest` dev dependencies, and the `apply from: appfunctions.gradle` integration were approved by the author.
+
+## 2026-10-10: Generated naming
+
+- **Decision:** `appFunctionXmlFileName` = snake_case(`serviceName`) (Google sample convention). The handler aggregate interface is always `AppFunctionsHandlers`, with one `fun interface <Function>Handler` per function. Generated resources are prefixed `appfunctions_`. Manifest entries go in a generated overlay merged by AGP.
+- **Alternatives:** keep Phase 1's `field_app_functions` / `FieldAppFunctionsHandlers` names, which can't be derived cleanly from config; or edit the app's own manifest, which hand-edits app files.
+- **Reason:** Names are derivable and stable, can't collide with app resources, and the app's files stay untouched. Function IDs keep the Phase 1 shape `<kotlinPackage>.Base<serviceName>#<fn>`.
+
+## 2026-10-10: Codegen regenerates on every build
+
+- **Decision:** `generateAppFunctions` is never up to date (`upToDateWhen { false }`). The CLI rewrites only files whose content changed.
+- **Reason:** It follows the CLAUDE.md rule "regenerate on every build", and unchanged output keeps KSP and compilation up to date (verified: an unchanged rebuild leaves `kspDebugKotlin` UP-TO-DATE).

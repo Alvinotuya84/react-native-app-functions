@@ -112,10 +112,6 @@ dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
 
-    // AppFunctions: runtime + KSP compiler (generates the service class and schema XML)
-    implementation("androidx.appfunctions:appfunctions:${rootProject.ext.appFunctionsVersion}")
-    ksp("androidx.appfunctions:appfunctions-compiler:${rootProject.ext.appFunctionsVersion}")
-
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {
@@ -123,10 +119,6 @@ dependencies {
     }
 }
 
-// Merge every module's @AppFunctionDeclaration functions into this app's inventory.
-ksp {
-    arg("appfunctions:aggregateAppFunctions", "true")
-    // Also emit <appFunctionXmlFileName>-v1.xml for the legacy (v1) AppSearch indexer used by
-    // Android 16 builds; it is read via the "android.app.appfunctions" service property.
-    arg("appfunctions:generateV1Xml", "true")
-}
+// AppFunctions: generated from ../appfunctions.config.ts by react-native-app-functions.
+// (A consumer app uses "../../node_modules/react-native-app-functions/android/appfunctions.gradle".)
+apply from: "../../../android/appfunctions.gradle"

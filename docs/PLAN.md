@@ -63,7 +63,7 @@ Expected: JSON containing three dummy records. Also install on an API ≤ 35 emu
 
 **Phase 2: codegen reproduces Phase 1.** Detailed plan in section 6.
 
-## 6. Phase 2 detailed plan (proposed 2026-10-10, awaiting approval)
+## 6. Phase 2 detailed plan (approved and implemented 2026-10-10)
 
 ### 6.1 Config (public API, needs approval)
 
@@ -149,7 +149,7 @@ src/config.ts           defineAppFunctions + config types (the `./config` export
 
 ### 6.6 Steps
 
-1. **Spike first (half a day max):** confirm KSP processes Kotlin added via `sources.kotlin.addGeneratedSourceDirectory`. KSP must see generated sources; this isn't documented. If not, fall back to `android.sourceSets.main.kotlin.srcDir(taskOutput)` + `dependsOn`.
+1. **Spike first:** confirm KSP processes Kotlin added via `sources.kotlin.addGeneratedSourceDirectory`. **Result: it doesn't.** We use `kotlin.sourceSets.main.kotlin.srcDir(task.flatMap { … })` instead (see DECISIONS.md).
 2. Move Phase 1 files into `codegen/__fixtures__/handwritten/`.
 3. Parser + validator + tests (including error-message tests).
 4. Templates + renderer: the render test asserts generated == fixture, modulo the `// GENERATED — do not edit` header.

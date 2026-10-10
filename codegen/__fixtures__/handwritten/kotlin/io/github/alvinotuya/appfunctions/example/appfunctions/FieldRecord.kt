@@ -1,3 +1,4 @@
+// GENERATED — do not edit. Source: appfunctions.config.ts (react-native-app-functions).
 package io.github.alvinotuya.appfunctions.example.appfunctions
 
 import androidx.appfunctions.AppFunctionSerializable

@@ -2,7 +2,12 @@
   "compilerOptions": {
     "rootDir": ".",
     "paths": {
-      "react-native-app-functions": ["./src/index"]
+      "react-native-app-functions": [
+        "./src/index"
+      ],
+      "react-native-app-functions/config": [
+        "./src/config"
+      ]
     },
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
@@ -13,7 +18,9 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "jsx": "react-jsx",
-    "lib": ["ESNext"],
+    "lib": [
+      "ESNext"
+    ],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "noEmit": true,
@@ -27,5 +34,11 @@
     "strict": true,
     "target": "ESNext",
     "verbatimModuleSyntax": true
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "lib",
+    "codegen",
+    "example/node_modules"
+  ]
 }
