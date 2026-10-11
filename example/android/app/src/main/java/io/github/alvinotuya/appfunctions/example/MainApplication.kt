@@ -1,0 +1,31 @@
+package io.github.alvinotuya.appfunctions.example
+
+import android.app.Application
+import com.facebook.react.PackageList
+import com.facebook.react.ReactApplication
+import com.facebook.react.ReactHost
+import com.facebook.react.ReactNativeApplicationEntryPoint.loadReactNative
+import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
+import io.github.alvinotuya.appfunctions.example.appfunctions.AppFunctionsHandlers
+import io.github.alvinotuya.appfunctions.example.appfunctions.ListTodaysRecordsHandler
+
+class MainApplication : Application(), ReactApplication, AppFunctionsHandlers {
+
+  override val listTodaysRecordsHandler: ListTodaysRecordsHandler = DummyListTodaysRecordsHandler
+
+  override val reactHost: ReactHost by lazy {
+    getDefaultReactHost(
+      context = applicationContext,
+      packageList =
+        PackageList(this).packages.apply {
+          // Packages that cannot be autolinked yet can be added manually here, for example:
+          // add(MyReactNativePackage())
+        },
+    )
+  }
+
+  override fun onCreate() {
+    super.onCreate()
+    loadReactNative(this)
+  }
+}

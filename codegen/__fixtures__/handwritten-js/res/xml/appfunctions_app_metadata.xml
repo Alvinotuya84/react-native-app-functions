@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GENERATED — do not edit. Source: appfunctions.config.ts (react-native-app-functions). -->
+<AppFunctionAppMetadata xmlns:appfn="http://schemas.android.com/apk/androidx.appfunctions"
+    appfn:description="Field-agent app holding the agent's scheduled field records on this device. Use 'listTodaysRecords' to see what is scheduled today. All functions are read-only."
+    appfn:displayDescription="@string/appfunctions_display_description" />

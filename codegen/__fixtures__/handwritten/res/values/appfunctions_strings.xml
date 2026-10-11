@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GENERATED — do not edit. Source: appfunctions.config.ts (react-native-app-functions). -->
+<resources>
+    <string name="appfunctions_display_description">Lets assistants read today\'s field records</string>
+</resources>
