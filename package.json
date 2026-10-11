@@ -163,7 +163,8 @@
     "modulePathIgnorePatterns": [
       "<rootDir>/example/node_modules",
       "<rootDir>/lib/",
-      "<rootDir>/codegen/lib/"
+      "<rootDir>/codegen/lib/",
+      "<rootDir>/examples/"
     ]
   }
 }

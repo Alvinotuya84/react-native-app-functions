@@ -3,6 +3,7 @@
   "exclude": [
     "example",
     "lib",
-    "codegen"
+    "codegen",
+    "examples"
   ]
 }

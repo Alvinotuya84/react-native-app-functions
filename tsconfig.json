@@ -39,6 +39,7 @@
     "node_modules",
     "lib",
     "codegen",
-    "example/node_modules"
+    "example/node_modules",
+    "examples"
   ]
 }
