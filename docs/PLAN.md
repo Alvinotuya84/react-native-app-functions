@@ -21,8 +21,8 @@ react-native-app-functions/
                                AppFunctionsModule (Turbo Module), later JsBridge, AuthGate
   codegen/                     Node codegen (Phase 2)
     src/                       config parsing (TS compiler API), type mapping, validation, render
-    src/templates/             ALL Kotlin/XML templates (alpha upgrades touch only this + versions.ts)
-    src/versions.ts            single pin: APPFUNCTIONS_VERSION = "1.0.0-alpha13", KSP version
+    src/templates/             ALL Kotlin/XML templates (alpha upgrades touch only this + versions.json)
+  versions.json                single pin: AppFunctions + KSP versions (read by Gradle and the example)
     __tests__/                 snapshot + type-mapping tests
     __fixtures__/handwritten/  the Phase 1 Kotlin/manifest, used as the codegen diff target
   example/                     bare RN 0.87.1 app, android/ committed
@@ -104,7 +104,9 @@ export default defineAppFunctions({
 - `defineAppFunctions` is an identity function that gives editor types. The codegen **never executes** the file: it parses it with the TypeScript compiler API and accepts only literals (object, string, boolean, array). Anything else (variables, calls, spreads, template expressions) fails the build with the file:line.
 - v0 type vocabulary: `string`, `int`, `long`, `double`, `boolean`, `localDateTime`, `instant`, `localDate`, a named type from `types`, and `{ type: 'list', of: <any of those> }`. Every field can be `nullable`. Anything else fails the build with `function "<fn>", field "<path>": <reason>`. More types come later (`VERIFIED.md` lists what AppFunctions supports).
 
-### 6.2 What gets generated (into `app/build/generated/appfunctions/<variant>/`)
+### 6.2 What gets generated (into `app/build/generated/appfunctions/`)
+
+> **As implemented:** Kotlin is wired through the Kotlin `main` source set, not the Variant API, because KSP ignores Variant API sources (see 6.6 step 1 and DECISIONS.md). Each declared type gets its own `<TypeName>.kt`, resources are named `appfunctions_*`, and JS functions add `AppFunctionsJson.kt` (section 7). The table below is the original proposal.
 
 | Output | Content | Wired via (AGP 9.2.1 Variant API, verified in source) |
 |---|---|---|
@@ -121,7 +123,7 @@ The function ID stays `<kotlinPackage>.Base<serviceName>#<function>`, matching P
 - The library ships `android/appfunctions.gradle`. A consumer app adds one line to `app/build.gradle`: `apply from: "../../node_modules/react-native-app-functions/android/appfunctions.gradle"`. This is the same pattern as react-native-vector-icons' `fonts.gradle`.
 - The script:
   - adds `appfunctions` + `ksp(appfunctions-compiler)` and the KSP args `aggregateAppFunctions` + `generateV1Xml`;
-  - registers `generate<Variant>AppFunctions` (runs `node <lib>/codegen/lib/cli.js --config <appRoot>/appfunctions.config.ts --out <dir>`), with the config file as a declared input so Gradle reruns it only on change;
+  - registers one `generateAppFunctions` task (as implemented; proposed per variant) that runs `node <lib>/codegen/lib/cli.js --config <appRoot>/appfunctions.config.ts --out <dir>`), with the config file as a declared input so Gradle reruns it only on change;
   - wires the outputs in with the Variant API above, so ordering before KSP comes from the task graph instead of hand-written `dependsOn`.
 - The consumer still applies the KSP Gradle plugin itself, because a script plugin can't add buildscript classpath entries. The README will say so.
 - **One version pin:** `versions.json` at the library root (`appfunctions`, `ksp`). Gradle reads it with `JsonSlurper`, and the Node side imports it.
@@ -162,7 +164,7 @@ src/config.ts           defineAppFunctions + config types (the `./config` export
 - Unsupported config fails the build with a message naming the function and field.
 - `yarn test` passes, and the render test proves the generator reproduces Phase 1.
 
-**Phase 3: `handler: "js"` via Headless JS.**
+**Phase 3: `handler: "js"` via Headless JS.** *(Original summary; superseded by the implemented design in section 7.)*
 - Generated body calls `JsBridge.invoke(name, argsJson)`. `JsBridge` starts a headless task, waits on a `CompletableDeferred`, and wraps it in `withTimeout`. It maps JS errors and timeouts to `AppFunctionAppUnknownException` / `AppFunctionCancelledException`.
 - First read RN 0.88's `HeadlessJsTaskService`/`HeadlessJsTaskContext` source for bridgeless support. We're already inside a bound service, so we may drive `HeadlessJsTaskContext` directly instead of `startForegroundService`.
 - Must set `allowedInForeground = true`, or the call crashes when the app is open.
@@ -194,7 +196,8 @@ Facts behind this plan are in `VERIFIED.md` under "Headless JS internals".
 ```
 agent → FieldAppFunctionService (KSP) → Base…Service.findRecord(id)          [generated]
       → JsBridge.call(context, "findRecord", argsJson, timeoutMs)            [library, Kotlin]
-          1. callId = UUID; CompletableDeferred registered under callId
+          1. callId = UUID; a pending callback registered under callId (as implemented; generated code
+             awaits it with suspendCancellableCoroutine + withTimeoutOrNull)
           2. on the main thread: reactHost.currentReactContext ?: reactHost.start() + wait
           3. HeadlessJsTaskContext.startTask(HeadlessJsTaskConfig(
                "ReactNativeAppFunctions", {callId, name, argsJson}, timeout, allowedInForeground = true))
@@ -270,3 +273,57 @@ registerAppFunctionHandler<typeof config, 'findRecord'>('findRecord', async ({ i
 - **Cold-start JS latency** could be several seconds (process start + Hermes + bundle load). If it's too slow for agents, mitigations are keeping handlers in a small separate entry, or recommending `native` for hot paths. We'll measure first.
 - **Foreground interplay:** the handler shares the JS thread with the UI. Long handlers would jank the UI, so this needs documenting.
 - **Debug builds** need Metro to load the bundle on a cold start.
+
+## 8. Showcase: notes demo app (approved 2026-10-11; steps 1–4 and 7 done)
+
+Goal: a polished notes app whose functions Gemini calls live, recorded side by side with Google's AppFunctions Testing Agent ("Agent Demo" tab, Gemini) on an unfolded foldable. It's also a public reference app that installs `react-native-app-functions@alpha` **from npm**.
+
+### 8.1 Where and how
+
+- `examples/notes/`: a fresh bare RN 0.87.1 app (`@react-native-community/cli init`, npm), **outside** the yarn workspace (the root `workspaces` stays `["example"]`), so it installs the library from the registry exactly as a user would. Root tsconfig, ESLint and tsconfig.build exclude `examples/`. `example/` stays the library's dev and test app.
+- Package id `io.github.alvinotuya.notes`, app name "Notes".
+
+### 8.2 Functions (all `handler: 'js'`, so agent writes show up live in the open UI)
+
+| Function | Params | Returns | Description for the LLM (summary) |
+|---|---|---|---|
+| `createNote` | `title`, `body`, `tags?: list<string>` | `Note` | Create a note; use for "note/remember/write down …". |
+| `searchNotes` | `query` | `list<Note>` | Full-text search over titles, bodies and tags; use before answering questions about notes. |
+| `listRecentNotes` | `limit?: int` | `list<Note>` | Most recently updated first. |
+| `appendToNote` | `id`, `text` | `Note` | Add text to an existing note; get the id from search or list. |
+
+- `Note` = `id`, `title`, `body`, `tags: list<string>`, `createdAt: instant`, `updatedAt: instant`.
+- **No delete** until the confirmation feature exists (Phase 4). This matches the README's warning.
+- Descriptions are where Gemini's accuracy comes from; they get tuned against real prompts in step 8.4.
+
+### 8.3 App internals
+
+- **Storage:** `react-native-mmkv` 4.3.2 + `react-native-nitro-modules` 0.37.1 (MMKV 4 requires Nitro). **New dependencies in the demo app only; needs approval.** RN 0.87 compatibility is unverified; it gets confirmed at the first build, with AsyncStorage 3.1.1 as the fallback.
+- **State:** a small store (`useSyncExternalStore`, no extra dependency) persisted to MMKV. Handlers write through the store, so the open UI re-renders immediately; on a cold start (app closed) the write persists and shows when the app opens.
+- **UI:** one screen designed for half of the unfolded fold (about 430 dp wide):
+  - a header and note cards with tag chips and relative times;
+  - a brief highlight plus an "✨ via assistant" badge on notes created or edited by a function call, using RN's built-in `Animated`;
+  - no extra UI dependencies.
+
+### 8.4 Steps
+
+1. Scaffold `examples/notes`, `npm install react-native-app-functions@alpha react-native-mmkv react-native-nitro-modules`, and follow the library README setup (KSP, `apply from`, config).
+2. Store, UI, handlers. Release build on `AppFunctions_Fold_API_37`.
+3. Verify each function with `adb … execute-app-function` (cold and warm).
+4. Install the Testing Agent with the privileged launch (fingerprint workaround). You enter your Gemini key in its Settings; it stays on the emulator, and I never see or store it. Disconnect other apps in the agent so only Notes' functions are offered.
+5. Dry-run the storyboard prompts with Gemini and tune descriptions until it picks the right function every time.
+6. Recording setup: the notes app plus the agent in split screen (taskbar drag; the adb launch-adjacent flag didn't split in a test). Record with the emulator's built-in screen recorder or `adb shell screenrecord --display-id <inner display>`.
+7. `examples/notes/README.md`: what it shows and how to run it.
+
+### 8.5 Storyboard (about 40 s, captions, no voiceover)
+
+1. "Note: order 20 bags of cement for site B and call Juma on Friday" → `createNote`; the card appears on the right.
+2. "What do I need to do for site B?" → `searchNotes`; Gemini answers from the app's data.
+3. "Add 'bring the level' to that note" → `appendToNote`; the card updates live.
+4. Close Notes, then ask "Create a shopping list note: milk, eggs, bread", then open Notes: the note is there (cold start).
+5. End card: name, `npm install react-native-app-functions@alpha`, GitHub URL. Caption throughout: "Agent: Google's AppFunctions Testing Agent + Gemini".
+
+### 8.6 Notes
+
+- No library changes are planned, and no new release.
+- The fold AVD is 2076×2152 unfolded (nearly square, good for feeds) and has two displays, so `screencap`/`screenrecord` need `-d/--display-id` (inner display: `dumpsys SurfaceFlinger --display-id`, first entry).

@@ -73,7 +73,7 @@ Layers:
 
 - **v0**: Android only. Done: one `native` function end to end (Phase 1), codegen reproducing it (Phase 2), `js` handlers via Headless JS (Phase 3). **Next: Phase 4, the auth gate, confirmation and dev harness.** See `docs/PLAN.md`.
 - **Later**: more types, multiple functions, generated TS types, iOS App Intents backend from the same config.
-- Published to npm as alpha (`0.1.0-alpha.0`, dist-tag `alpha`, `publishConfig.tag` enforces it). The author publishes; keep `CHANGELOG.md` updated and validate the packed tarball in a fresh RN app before each release.
+- Published to npm as alpha (`0.1.0-alpha.0`, dist-tag `alpha`, `publishConfig.tag` enforces it). The author publishes with `npm publish --tag alpha --otp=<code>` (npm requires 2FA; don't rely on `publishConfig.tag`: npm 11.11 printed "with tag latest" despite it, so pass `--tag` explicitly and check `--dry-run` first). Keep `CHANGELOG.md` updated and validate the packed tarball in a fresh RN app before each release.
 - Out of scope for now: iOS, docs site.
 
 ## Rules
@@ -98,10 +98,10 @@ Layers:
 
 ## Repo map and commands
 
-- `src/` RN runtime + `src/config.ts` (`defineAppFunctions`, exported as `react-native-app-functions/config`) · `codegen/` generator, tests, `__fixtures__/handwritten/` (the reference output) · `android/` library module + `appfunctions.gradle` · `example/` bare RN 0.87.1 app with committed `android/` and `appfunctions.config.ts`.
+- `src/` RN runtime + `src/config.ts` (`defineAppFunctions`, exported as `react-native-app-functions/config`) · `codegen/` generator, tests, `__fixtures__/handwritten/` (the reference output) · `android/` library module + `appfunctions.gradle` · `example/` bare RN 0.87.1 app with committed `android/` and `appfunctions.config.ts` (library dev app, yarn workspace) · `examples/notes/` showcase app, a standalone npm project installing the published `@alpha`.
 - Node 24 via `.nvmrc` (run `nvm use`; the nvm default on this machine is 22). `yarn prepare` builds `lib/` and `codegen/lib/` (needed before any Gradle build). `yarn test`, `yarn typecheck`, `yarn lint`.
 - Build: `cd example/android && ./gradlew :app:assembleDebug -PreactNativeArchitectures=arm64-v8a`.
-- Emulators: `AppFunctions_API_37` (Android 17) and `AppFunctions_API_36_1` (Android 16 QPR) have `cmd app_function`; `Pixel_9` is Android 16.0 (indexes v1 only, no `cmd`); `Medium_Phone_API_36.0` actually runs API 31.
+- Emulators: `AppFunctions_Fold_API_37` (Pixel 9 Pro Fold, Android 17, has `cmd app_function`; two displays, so use `screencap -d <id>`); `Pixel_9` is Android 16.0 (indexes v1 only, no `cmd`); `Medium_Phone_API_36.0` actually runs API 31.
 
 ## Context about the author
 

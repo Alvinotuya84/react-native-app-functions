@@ -162,10 +162,30 @@ Source: our own build of `example/` and emulator runs. Logs and commands are in 
 | In the consumer app, `tsc --noEmit` passes with the handler types from the published `lib/typescript` (`react-native-app-functions/config` export); a wrong return type is rejected. | 2026-10-10 |
 | Android 17 emulator, consumer release APK: both functions listed (7 descriptions). Cold native `listTodaysVisits`, cold JS `getVisit` and JS `NOT_FOUND` (code 1500) all behave as in the example app. | 2026-10-10 |
 
+## `AppFunctionManager(Compat)` history and SDK gates (published `-sources.jar`s, 2026-10-11)
+
+| Fact | Checked |
+|---|---|
+| alpha01–07 name the Jetpack client `AppFunctionManagerCompat`; alpha08 renamed it `AppFunctionManager` (`androidx.appfunctions`). | 2026-10-11 |
+| alpha01 `getInstance`: non-null when `SDK_INT >= TIRAMISU` (33) **and** the extension library is present. alpha05: `>= BAKLAVA` (36) → platform API; `>= UPSIDE_DOWN_CAKE` (34) + extension library → extension API. Tiramisu dropped. | 2026-10-11 |
+| alpha13 `getInstance`: null below API 34 and for profile users. `>= CINNAMON_BUN` (37) → `PlatformAppFunctionReader` + platform API; `>= BAKLAVA` (36) → `AppSearchAppFunctionReader` + platform API; extension library available (34–35) → AppSearch reader + `ExtensionAppFunctionManagerApi`. | 2026-10-11 |
+| Implications: our generated service (`AppFunctionService`, `@RequiresApi(36)`) does **not** serve Android 14–15 extension-library devices (those use `ExtensionsAppFunctionService`, alpha11+). A future `isSupported()` must check `SDK_INT >= 36`, not only `getInstance() != null`. Which devices ship the extension library is undocumented. | 2026-10-11 |
+
+## Notes demo (`examples/notes`, 2026-10-11)
+
+| Fact | Checked |
+|---|---|
+| Fresh RN 0.87.1 app + `react-native-app-functions@alpha` **from npm** + `react-native-mmkv` 4.3.2 + `react-native-nitro-modules` 0.37.1: the release build succeeds (MMKV 4 / Nitro work on RN 0.87). | 2026-10-11 |
+| Foldable AVD `AppFunctions_Fold_API_37` (pixel_9_pro_fold, android-37.0 google_apis): unfolded 2076×2152 @390 dpi, two displays (screencap/screenrecord need `-d <id>`). `FLAG_ACTIVITY_LAUNCH_ADJACENT` via `am start -f 0x10001000` did **not** produce split screen. | 2026-10-11 |
+| All four JS functions work via `cmd app_function`; a call while the app is open updates the UI live (the store is shared with the headless task's runtime); a cold `createNote` persists through MMKV and shows when the app is opened. | 2026-10-11 |
+| The fold AVD was created with `hw.gpu.enabled=no` and `hw.ramSize=2G` (software rendering), which lagged badly. Fixed with `hw.gpu.enabled=yes`, `hw.gpu.mode=host`, `hw.ramSize=4096` and `hw.cpu.ncore=6` (host: M3 Pro, 18 GB). The emulator warns that API 37 wants GLES 3.1 while the host translator gives 3.0, but it rendered correctly. A hardware keyboard (`hw.keyboard=yes`) made Gboard show floating toolbars; fixed by `settings put secure stylus_handwriting_enabled 0` and `pm disable-user --user 0 com.google.android.inputmethod.latin` (plain `ime disable` gets undone by the system). | 2026-10-11 |
+| On this fold image `cmd allowlist` lacks `add-package-with-metadata-multimap`; `add-package-multimap 2 <pkg>:<sha256> "'*'"` works (Google's script checks `help` and falls back). | 2026-10-11 |
+| `EXECUTE_APP_FUNCTIONS` is `prot=internal|privileged`; the shell (`com.android.shell`) holds it. `cmd app_function` runs as the shell. The Testing Agent gets it via `UiAutomation.adoptShellPermissionIdentity` inside `ShellIdentityInstrumentation` (it must be started with `am instrument -w`) plus the Android 17 caller allowlist. The agent's LLM mode offers Gemini all enabled functions from all connected apps (`AgentOrchestrator.filterTools`); the standard flavor takes the Gemini key in Settings. | 2026-10-11 |
+
 ## Local machine (2026-10-10)
 
 - JDK 17.0.14. Android SDK platform `android-37.0` and build-tools 37.0.0 installed (2026-10-10). `adb` present.
-- AVDs: `AppFunctions_API_37` (Android 17) and `AppFunctions_API_36_1` (Android 16 QPR), both created 2026-10-10 for AppFunctions testing; `Pixel_9`/`Pixel_7`/`Pixel_9_Pro` (Android 16.0), `Medium_Phone_API_36.0` (**actually runs API 31** despite its name).
+- AVDs: `AppFunctions_Fold_API_37` (Pixel 9 Pro Fold, Android 17, created 2026-10-11; the earlier `AppFunctions_API_37` / `AppFunctions_API_36_1` and the 36.1 image were deleted to free space); `Pixel_9`/`Pixel_7`/`Pixel_9_Pro` (Android 16.0), `Medium_Phone_API_36.0` (**actually runs API 31** despite its name).
 - nvm has Node 22.11.0 and 24.14.1. Repo `.nvmrc` = 24.14.1. The nvm default alias is still 22.11.0, so run `nvm use` in each shell.
 
 ## Open questions
