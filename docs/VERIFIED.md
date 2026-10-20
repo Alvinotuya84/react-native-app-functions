@@ -182,6 +182,44 @@ Source: our own build of `example/` and emulator runs. Logs and commands are in 
 | On this fold image `cmd allowlist` lacks `add-package-with-metadata-multimap`; `add-package-multimap 2 <pkg>:<sha256> "'*'"` works (Google's script checks `help` and falls back). | 2026-10-11 |
 | `EXECUTE_APP_FUNCTIONS` is `prot=internal|privileged`; the shell (`com.android.shell`) holds it. `cmd app_function` runs as the shell. The Testing Agent gets it via `UiAutomation.adoptShellPermissionIdentity` inside `ShellIdentityInstrumentation` (it must be started with `am instrument -w`) plus the Android 17 caller allowlist. The agent's LLM mode offers Gemini all enabled functions from all connected apps (`AgentOrchestrator.filterTools`); the standard flavor takes the Gemini key in Settings. | 2026-10-11 |
 
+## iOS: `expo-app-intents` (https://docs.expo.dev/versions/latest/sdk/app-intents/, npm 0.5.10, 2026-10-20)
+
+| Fact | Checked |
+|---|---|
+| **Alpha** ("will frequently experience breaking changes"). Docs are for Expo SDK 58. Runtime: iOS 16.4+. Some features need iOS 18 / 18.4 / 27 and Xcode 27. Not in Expo Go. | 2026-10-20 |
+| Setup: config plugin `expo-app-intents` + inline modules (`watchedDirectories: ["app-intents"]`), `npx expo-app-intents init`, `npx expo prebuild -p ios`. Bare RN (no prebuild) is **not documented**. | 2026-10-20 |
+| Intents are **hand-written Swift** in the `app-intents/` folder, compiled at build time (Xcode metadata extraction). JS cannot define intents or Siri phrases at runtime. | 2026-10-20 |
+| `perform()` runs in Swift and calls `AppIntentDispatcher.shared.dispatch(name:params:)`: persisted, **at-least-once**, **one-way** to JS (`useAppIntents` / `onIntent`); **no return value from JS to Siri**. Pending queue max 100. | 2026-10-20 |
+| Read-style data for the system comes from JS-published **entity catalogs** (`setEntityCatalogAsync`, stored in `UserDefaults`, keep small) queried from Swift. | 2026-10-20 |
+| App Shortcuts: static phrases, each must include `\(.applicationName)`, max 10 shortcuts, at most one non-array parameter per phrase. | 2026-10-20 |
+| npm: `expo-app-intents@0.5.10`, peer `expo`/`react`/`react-native` `*`, depends on `@expo/ui ^58`. `expo@latest` = 58.0.16. | 2026-10-20 |
+| Local: Xcode 27.0 (27A266a), iOS simulator runtimes 26.5 / 27.0 / 27.1, CocoaPods installed. | 2026-10-20 |
+
+## iOS: Apple App Intents (developer.apple.com docs via `/tutorials/data/documentation/appintents/*.json`, and the Xcode 27 SDK `AppIntents.swiftmodule/arm64-apple-ios-simulator.swiftinterface`, 2026-10-20)
+
+| Fact | Checked |
+|---|---|
+| `AppIntent` (iOS 16+) "make[s] your app's actions discoverable by Apple Intelligence and Siri, the Shortcuts app, and other system experiences". It can be implemented "in your app, app extension, framework, or Swift package". Inputs use `@Parameter`; `perform()` returns a result to the system. | 2026-10-20 |
+| `AppIntentsPackage` (iOS 17+) is required to expose intents declared in a framework/package; by default intents are part of the app bundle. | 2026-10-20 |
+| `openAppWhenRun` is deprecated in iOS 26 → `supportedModes: IntentModes` (iOS 26+): `.background`, `.foreground(.immediate / .deferred / .dynamic)`. | 2026-10-20 |
+| `ReturnsValue<Value>` (iOS 16+). Value types (`_IntentValue`): `String`, `Int`, `Double`, `Bool`, `Date`, `DateComponents`, `URL`, `Measurement`, `AttributedString`, `IntentFile`, `Optional`, `Array`/`Set` of values, entities. | 2026-10-20 |
+| `TransientAppEntity` (iOS 16+): an `AppEntity` with `init()` and a built-in UUID id/default query, suited to returning structured values without a database query. | 2026-10-20 |
+| RN 0.87 `min_ios_version_supported` = `15.1` (`scripts/cocoapods/helpers.rb`), so generated intents need `@available(iOS 16.0, *)`. The RN 0.87 template `AppDelegate.swift` calls `factory.startReactNative(…)` inside `didFinishLaunchingWithOptions` (unverified: whether that also runs on a background launch for an intent). | 2026-10-20 |
+
+## iOS slice 1 results (example app, 2026-10-20)
+
+| Fact | Checked |
+|---|---|
+| A hand-written `AppIntent` + `TransientAppEntity` (`@Property(title:)` + `init()`) + native Swift handler compiles in the RN 0.87.1 app target (Swift 5, deployment target 15.1). Every App Intents type, including the `CustomLocalizedStringResourceConvertible` error, needs `@available(iOS 16.0, *)`. | 2026-10-20 |
+| Xcode runs `ExtractAppIntentsMetadata` for the app target; the `.app` contains `Metadata.appintents/extract.actionsdata` listing `ListTodaysRecordsIntent` (title, description, output `[FieldRecordEntity]`) and the entity's properties. | 2026-10-20 |
+| Adding a file to the RN template's app group needs a path relative to the group's real path (`AppFunctionsExample/<file>`); the group itself has no path. Done with the `xcodeproj` gem (idempotent script), which is what the Podfile helper will use. | 2026-10-20 |
+| **iOS 27 simulator:** the RN 0.87.1 template app **fails to launch**: `Application failed to launch: UIScene life cycle is r[equired]` (`_UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption`). iOS 26.5 launches fine. Not a library issue, but iOS 27 testing needs the app to adopt `UIScene`. | 2026-10-20 |
+| iOS 26.5 foreground launch: `didFinishLaunching` runs with `applicationState=1`, and RN posts `RCTInstanceDidLoadBundle` ~238 ms later (Release, embedded bundle). **Background launch via an intent (app terminated, run from Shortcuts):** `applicationState=2` (background), the JS bundle loaded ~120 ms in, and the native handler ran. So RN starts and loads JS on an intent's background launch, and the JS bridge is viable. | 2026-10-20 |
+| Local tooling: `Simulator.app` is not present in this Xcode 27 install (simulators run headless via `simctl`). The `pod` launcher in RVM ruby-3.1.4 fails with `GemNotFoundException` even though `cocoapods 1.16.2` is installed; the workaround is `ruby -e 'load Gem.bin_path("cocoapods","pod")' install` with `~/.rvm/environments/default` sourced. | 2026-10-20 |
+
+| Shortcuts (iOS 26.5 simulator) lists the app under its actions, finds "List Todays Records" by search, and running it cold shows the 3 records using the entity's `DisplayRepresentation` (title + status subtitle), without bringing the app to the foreground. | 2026-10-20 |
+| Automation: an XCUITest target can drive `XCUIApplication(bundleIdentifier: "com.apple.shortcuts")` (Create Shortcut → focus "Search Actions" (the first tap only expands the sheet) → type → tap the cell → `play`). Action **results are not in Shortcuts' accessibility tree**, so values are verified via screenshots/logs; the test asserts no error alert. `DeviceHub.app` (Xcode 27) shows the simulator UI. | 2026-10-20 |
+
 ## Local machine (2026-10-10)
 
 - JDK 17.0.14. Android SDK platform `android-37.0` and build-tools 37.0.0 installed (2026-10-10). `adb` present.

@@ -61,3 +61,9 @@ Short log. Newest at the bottom.
 - **Decision:** Publish `0.1.0-alpha.0` with `publishConfig.tag = "alpha"` and public access, before the auth gate, so the public can validate the approach. The README carries a prominent warning to expose only read-only, non-sensitive data.
 - **Alternatives:** `0.1.0` on `latest`, which is easier to install but uses up 0.1.0 and looks more finished than it is; waiting for Phase 4.
 - **Reason:** Author's choice: gather feedback first, then build auth. The packed tarball was validated in a fresh RN 0.87.1 app before release (see VERIFIED.md).
+
+## 2026-10-20: iOS uses our own App Intents backend, not `expo-app-intents`
+
+- **Decision:** Generate Swift `AppIntent`s from the same `appfunctions.config.ts` with our own codegen and runtime. Bare React Native is supported. Native Swift handlers come first, then a JS bridge that returns handler results to the system.
+- **Alternatives:** `expo-app-intents` (alpha, Expo SDK 58 + prebuild only, intents hand-written in Swift, JS dispatch is one-way with no return value, reads only via pre-published entity catalogs); a hybrid with Expo's library as an optional extra later.
+- **Reason:** Same semantics as Android (JS handlers return results), works in bare RN (the author's apps), and one config with one set of JS handlers serves both platforms. Chosen by the author.

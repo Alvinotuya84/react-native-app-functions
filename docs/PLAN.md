@@ -327,3 +327,65 @@ Goal: a polished notes app whose functions Gemini calls live, recorded side by s
 
 - No library changes are planned, and no new release.
 - The fold AVD is 2076×2152 unfolded (nearly square, good for feeds) and has two displays, so `screencap`/`screenrecord` need `-d/--display-id` (inner display: `dumpsys SurfaceFlinger --display-id`, first entry).
+
+## 9. iOS: App Intents backend (proposed 2026-10-20, awaiting approval)
+
+Facts behind this plan are in `VERIFIED.md` ("iOS: Apple App Intents" and "`expo-app-intents`"). Decision: `DECISIONS.md`, 2026-10-20.
+
+### 9.1 Shape
+
+```
+appfunctions.config.ts                                (unchanged, same file as Android)
+   │ codegen (new iOS target)
+   ▼
+ios/<App>/AppFunctions.generated.swift                one file, stable name
+   • one `AppIntent` per function: title, description, `@Parameter`s, `perform()`
+   • one `TransientAppEntity` per declared type (`@Property` per field)
+   • `protocol AppFunctionsHandlers` for `native` functions (iOS twin of the Kotlin one)
+   │ Xcode build: App Intents metadata extraction for the app target
+   ▼
+Shortcuts / Siri / Apple Intelligence / Spotlight discover the actions
+```
+
+- **Type mapping:** `string`→`String`, `int`/`long`→`Int`, `double`→`Double`, `boolean`→`Bool`, `localDate`/`localDateTime`/`instant`→`Date`, list→`[T]`, nullable→`T?`, declared type→`TransientAppEntity`.
+- **Run mode:** background by default (`supportedModes = .background` on iOS 26+, `openAppWhenRun = false` below). Gated with `@available(iOS 16.0, *)`; RN 0.87's floor is 15.1, and below 16 the app runs without intents.
+- **Titles:** Shortcuts shows a title per action. Derived from the function name by default (`createNote` → "Create Note"). **Proposed config addition:** an optional `title` per function (also usable by Android later).
+- **Errors:** handler errors become a thrown error with the message, which Shortcuts and Siri display. `AppFunctionError` codes map to messages.
+
+### 9.2 Handlers
+
+- **`native` (first slice):** the app implements the generated Swift `AppFunctionsHandlers` (e.g. in `AppDelegate`) and registers it once (`AppFunctionsRegistry.handlers = …`). It works with no JS.
+- **`js` (second slice):** reuses the existing `registerAppFunctionHandler` handlers unchanged. iOS has no Headless JS, so instead:
+  - the library's iOS module queues each call and emits an `onCall` event (TurboModule event emitter);
+  - the library's JS subscribes on import, runs the handler, and answers with the existing `completeCall` / `failCall`;
+  - a `ready()` handshake handles calls that arrive before JS has loaded;
+  - generated `perform()` awaits the result with the per-function `timeoutMs` and decodes it, like Android.
+
+### 9.3 Build integration (bare RN)
+
+- The codegen CLI gains `--ios-out`.
+- An Xcode "Run Script" build phase (before Compile Sources) runs it on every build, like the Gradle task.
+- **Proposed:** a Podfile helper (`require_relative` + `appfunctions_post_install(installer)`) adds that build phase and the generated file to the app target once, via the `xcodeproj` gem that ships with CocoaPods. **Alternative:** a documented manual one-time Xcode step. Needs your choice.
+- Intents stay in the **app target**, so no `AppIntentsPackage` or frameworks are needed. The library pod keeps only runtime code (bridge and registry).
+
+### 9.4 Slices
+
+1. **Hand-written slice (example app):** one hand-written `AppIntent` (`listTodaysRecords`, native Swift handler, returns `[FieldRecord]` entities) in `example/ios`.
+   - Verify: `xcodebuild` succeeds; the built `.app` contains `Metadata.appintents` listing the action; the action appears and runs in the **Shortcuts app on the iOS 27 simulator**, including after `xcrun simctl terminate` (cold).
+   - **Spike in the same slice:** does RN's JS start when iOS launches the app in the background for an intent? This decides how the JS bridge waits.
+2. **Codegen reproduces slice 1:** iOS templates plus a hand-written Swift fixture, with a byte-for-byte render test like Android; then the build integration (9.3).
+3. **JS bridge:** `onCall` + `ready()`, timeouts, error mapping, JSON decoding. The Notes demo gets iOS (the same four functions and handlers).
+4. **Docs + release:** README iOS section, VERIFIED/DECISIONS, `0.2.0-alpha.0` (after packed-tarball validation in a fresh RN app, as before).
+
+### 9.5 Verification and its limits
+
+- Automatable here: builds, metadata in the `.app`, unit/snapshot tests for the Swift codegen, and launching the simulator.
+- **Needs you:** running actions in the Shortcuts app (I can't tap the simulator UI from the terminal). I'll give exact steps per slice.
+- Siri/Apple Intelligence on the simulator is limited; Shortcuts is the reliable test surface. Real-device checks come later.
+
+### 9.6 Risks
+
+- **Background JS on iOS (high):** undocumented. If RN doesn't start or stalls on a background launch, `js` functions may need `.foreground(.dynamic)` or a lightweight host start. The spike in slice 1 answers this first.
+- **Apple Intelligence exposure:** Apple says App Intents are discoverable by Apple Intelligence and Siri, but how freely they choose custom intents (vs app-schema domains) isn't something we can verify on the simulator. Claims stay at "Shortcuts/Siri, Apple Intelligence where supported".
+- **Date semantics:** `localDate`/`localDateTime` become `Date` (time-zone dependent); this needs documenting.
+- **Project mutation:** the Podfile helper edits the user's Xcode project; it must be idempotent and easy to remove.
