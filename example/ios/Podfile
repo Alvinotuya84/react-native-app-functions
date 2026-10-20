@@ -5,6 +5,10 @@ require Pod::Executable.execute_command('node', ['-p',
     {paths: [process.argv[1]]},
   )', __dir__]).strip
 
+# AppFunctions: generated from ../appfunctions.config.ts by react-native-app-functions.
+# (A consumer app uses "../node_modules/react-native-app-functions/ios/appfunctions".)
+require_relative '../../ios/appfunctions'
+
 platform :ios, min_ios_version_supported
 prepare_react_native_project!
 
@@ -30,5 +34,6 @@ target 'AppFunctionsExample' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+    appfunctions_post_install(installer)
   end
 end
