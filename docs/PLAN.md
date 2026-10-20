@@ -328,7 +328,7 @@ Goal: a polished notes app whose functions Gemini calls live, recorded side by s
 - No library changes are planned, and no new release.
 - The fold AVD is 2076×2152 unfolded (nearly square, good for feeds) and has two displays, so `screencap`/`screenrecord` need `-d/--display-id` (inner display: `dumpsys SurfaceFlinger --display-id`, first entry).
 
-## 9. iOS: App Intents backend (proposed 2026-10-20, awaiting approval)
+## 9. iOS: App Intents backend (approved 2026-10-20)
 
 Facts behind this plan are in `VERIFIED.md` ("iOS: Apple App Intents" and "`expo-app-intents`"). Decision: `DECISIONS.md`, 2026-10-20.
 
@@ -370,10 +370,10 @@ Shortcuts / Siri / Apple Intelligence / Spotlight discover the actions
 
 ### 9.4 Slices
 
-1. **Hand-written slice (example app):** one hand-written `AppIntent` (`listTodaysRecords`, native Swift handler, returns `[FieldRecord]` entities) in `example/ios`.
+1. **(Done 2026-10-20) Hand-written slice (example app):** one hand-written `AppIntent` (`listTodaysRecords`, native Swift handler, returns `[FieldRecord]` entities) in `example/ios`.
    - Verify: `xcodebuild` succeeds; the built `.app` contains `Metadata.appintents` listing the action; the action appears and runs in the **Shortcuts app on the iOS 27 simulator**, including after `xcrun simctl terminate` (cold).
    - **Spike in the same slice:** does RN's JS start when iOS launches the app in the background for an intent? This decides how the JS bridge waits.
-2. **Codegen reproduces slice 1:** iOS templates plus a hand-written Swift fixture, with a byte-for-byte render test like Android; then the build integration (9.3).
+2. **(Done 2026-10-20) Codegen reproduces slice 1:** iOS templates plus a hand-written Swift fixture, with a byte-for-byte render test like Android; then the build integration (9.3).
 3. **JS bridge:** `onCall` + `ready()`, timeouts, error mapping, JSON decoding. The Notes demo gets iOS (the same four functions and handlers).
 4. **Docs + release:** README iOS section, VERIFIED/DECISIONS, `0.2.0-alpha.0` (after packed-tarball validation in a fresh RN app, as before).
 

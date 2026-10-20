@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- iOS (in progress): the codegen generates App Intents (`AppFunctions.generated.swift`, `--swift-out`) from the same `appfunctions.config.ts`, for `native` functions with Swift handlers (`AppFunctionsHandlers`, registered in `AppFunctionsRegistry.handlers`). `ios/appfunctions.rb` adds `appfunctions_post_install(installer)` for the Podfile, which wires a regenerate-on-build phase into the app target. `js` functions are not exposed on iOS yet.
+- Config: optional `title` per function (the iOS action title). Default: derived from the function name.
+
 ## 0.1.0-alpha.0 (2026-10-10)
 
 First public alpha, for validation. Android only, bare React Native 0.87+.
