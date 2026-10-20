@@ -18,6 +18,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     let factory = RCTReactNativeFactory(delegate: delegate)
     delegate.dependencyProvider = RCTAppDependencyProvider()
 
+    // AppFunctions: native handlers for App Intents (works without the JS runtime).
+    AppFunctionsRegistry.handlers = ExampleAppFunctionsHandlers()
+
     reactNativeDelegate = delegate
     reactNativeFactory = factory
 
@@ -45,4 +48,21 @@ class ReactNativeDelegate: RCTDefaultReactNativeFactoryDelegate {
     Bundle.main.url(forResource: "main", withExtension: "jsbundle")
 #endif
   }
+}
+
+/// Stand-in for the field-agent app's SQLite query (same records as the Android example).
+struct ExampleAppFunctionsHandlers: AppFunctionsHandlers {
+  struct ListToday: ListTodaysRecordsHandler {
+    func listTodaysRecords() async throws -> [FieldRecord] {
+      let today = Calendar.current.startOfDay(for: Date())
+      let at = { (h: Int, m: Int) in Calendar.current.date(byAdding: DateComponents(hour: h, minute: m), to: today) }
+      return [
+        FieldRecord(id: "rec-001", title: "Inspect water pump, Site A", status: "DONE", scheduledAt: at(8, 30)),
+        FieldRecord(id: "rec-002", title: "Meter reading, Block 4", status: "IN_PROGRESS", scheduledAt: at(11, 0)),
+        FieldRecord(id: "rec-003", title: "Customer follow-up call", status: "PENDING", scheduledAt: nil),
+      ]
+    }
+  }
+
+  var listTodaysRecordsHandler: ListTodaysRecordsHandler { ListToday() }
 }
