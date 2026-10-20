@@ -45,6 +45,11 @@ export type AppFunctionSpec = {
   /** Shown to the agent. Say what the function does and when to use it. */
   description: string;
   /**
+   * Short user-visible name, e.g. "Create Note". iOS shows it in Shortcuts and Siri. Default:
+   * derived from the function name (`createNote` → "Create Note").
+   */
+  title?: string;
+  /**
    * `native`: implemented in Kotlin by the app (fast, works without the JS runtime).
    * `js`: implemented with `registerAppFunctionHandler`, run as a Headless JS task.
    */

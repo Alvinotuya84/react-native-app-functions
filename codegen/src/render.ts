@@ -1,3 +1,4 @@
+import { ConfigError } from './errors';
 import type { AppFunctionsModel } from './model';
 import {
   APP_METADATA_RES,
@@ -15,6 +16,7 @@ import {
   typeFile,
 } from './templates/kotlin';
 import { kotlinPackagePath } from './templates/shared';
+import { iosProblems, swiftFile } from './templates/swift';
 
 export type OutputRoot = 'kotlin' | 'res' | 'manifest';
 
@@ -78,4 +80,11 @@ export function render(m: AppFunctionsModel): GeneratedFile[] {
     });
   }
   return files;
+}
+
+/** `AppFunctions.generated.swift` for the iOS app target. Throws `ConfigError` on iOS-only problems. */
+export function renderSwift(m: AppFunctionsModel): string {
+  const problems = iosProblems(m);
+  if (problems.length > 0) throw new ConfigError(problems);
+  return swiftFile(m);
 }

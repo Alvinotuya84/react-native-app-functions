@@ -207,7 +207,7 @@ export function validateConfig(raw: Literal): AppFunctionsModel {
     }
     checkKeys(
       spec,
-      ['description', 'handler', 'timeoutMs', 'params', 'returns'],
+      ['description', 'title', 'handler', 'timeoutMs', 'params', 'returns'],
       where,
       fail
     );
@@ -221,6 +221,18 @@ export function validateConfig(raw: Literal): AppFunctionsModel {
         `${where}, field "description"`,
         'required: agents choose functions by their description'
       );
+    }
+    let title = titleCase(name);
+    if (spec.title !== undefined) {
+      if (
+        typeof spec.title !== 'string' ||
+        spec.title.trim() === '' ||
+        spec.title.includes('\n')
+      ) {
+        fail(`${where}, field "title"`, 'must be a non-empty single line');
+      } else {
+        title = spec.title;
+      }
     }
     const handler = spec.handler === 'js' ? 'js' : 'native';
     if (spec.handler !== 'native' && spec.handler !== 'js') {
@@ -262,6 +274,7 @@ export function validateConfig(raw: Literal): AppFunctionsModel {
     functions.push({
       name,
       description: description ?? '',
+      title,
       ...(handler === 'js'
         ? { handler: 'js' as const, timeoutMs }
         : { handler: 'native' as const }),
@@ -287,6 +300,14 @@ export function handlerInterfaceName(functionName: string): string {
   return (
     functionName.charAt(0).toUpperCase() + functionName.slice(1) + 'Handler'
   );
+}
+
+/** `listTodaysRecords` → `List Todays Records`, `scheduledAt` → `Scheduled At`. */
+export function titleCase(name: string): string {
+  return name
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z])([A-Z][a-z])/g, '$1 $2')
+    .replace(/^./, (c) => c.toUpperCase());
 }
 
 /** `FieldAppFunctionService` → `field_app_function_service` (Google sample convention). */

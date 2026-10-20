@@ -1,6 +1,6 @@
 import { ConfigError } from '../src/errors';
 import type { Literal } from '../src/parse';
-import { render } from '../src/render';
+import { render, renderSwift } from '../src/render';
 import { snakeCase, validateConfig } from '../src/validate';
 
 type Config = { [key: string]: Literal };
@@ -182,7 +182,7 @@ describe('validation fails loudly, naming the function and field', () => {
     expect(
       problemsOf(base({ f: fn({ retruns: { type: 'string' } }) }))
     ).toEqual([
-      'function "f": unknown key "retruns" (allowed: description, handler, timeoutMs, params, returns)',
+      'function "f": unknown key "retruns" (allowed: description, title, handler, timeoutMs, params, returns)',
     ]);
   });
 
@@ -341,6 +341,113 @@ describe('js handlers', () => {
     const files = render(validateConfig(base({ f: fn() }))).map((f) => f.path);
     expect(files).not.toContainEqual(
       expect.stringContaining('AppFunctionsJson.kt')
+    );
+  });
+});
+
+describe('title', () => {
+  it('derives a title from the function name, or uses the config title', () => {
+    const m = validateConfig(
+      base({ listTodaysRecords: fn(), createNote: fn({ title: 'New Note' }) })
+    );
+    expect(m.functions.map((f) => f.title)).toEqual([
+      'List Todays Records',
+      'New Note',
+    ]);
+  });
+
+  it('must be a non-empty single line', () => {
+    expect(
+      problemsOf(base({ a: fn({ title: '' }), b: fn({ title: 'x\ny' }) }))
+    ).toEqual([
+      'function "a", field "title": must be a non-empty single line',
+      'function "b", field "title": must be a non-empty single line',
+    ]);
+  });
+});
+
+describe('iOS (Swift)', () => {
+  const iosProblemsOf = (config: Config): string[] => {
+    try {
+      renderSwift(validateConfig(config));
+    } catch (e) {
+      if (e instanceof ConfigError) return e.problems;
+      throw e;
+    }
+    throw new Error('expected a ConfigError');
+  };
+
+  it('rejects names that clash on iOS and declared-type params', () => {
+    expect(
+      iosProblemsOf(
+        base(
+          {
+            f: fn({
+              params: {
+                perform: { type: 'string' },
+                rec: { type: 'Rec' },
+              },
+            }),
+          },
+          {
+            Date: { fields: { a: { type: 'string' } } },
+            Rec: {
+              fields: { id: { type: 'string' }, recId: { type: 'string' } },
+            },
+          }
+        )
+      )
+    ).toEqual([
+      'type "Date": this name is reserved on iOS (Swift built-in or a generated type); pick another',
+      'type "Rec", field "id": on iOS it becomes "recId", which is already a field; rename one of them',
+      'function "f", param "perform": this name is reserved on iOS; pick another',
+      'function "f", param "rec": declared types as parameters are not supported on iOS yet; pass scalar fields instead',
+    ]);
+  });
+
+  it('maps types, escapes keywords and strings, and skips js functions', () => {
+    const swift = renderSwift(
+      validateConfig(
+        base(
+          {
+            find: fn({
+              title: 'Find "it"',
+              params: {
+                default: { type: 'boolean' },
+                day: { type: 'localDate', nullable: true },
+                tags: { type: 'list', of: 'string' },
+              },
+              returns: { type: 'Item', nullable: true },
+            }),
+            later: fn({ handler: 'js' }),
+          },
+          {
+            Item: {
+              fields: {
+                id: { type: 'string' },
+                count: { type: 'long' },
+                kids: { type: 'list', of: 'Item', nullable: true },
+              },
+            },
+          }
+        )
+      )
+    );
+    expect(swift).toContain(
+      '// Not exposed on iOS yet ("js" handlers): later.'
+    );
+    expect(swift).toContain(
+      'func find(`default`: Bool, day: Date?, tags: [String]) async throws -> Item?'
+    );
+    expect(swift).toContain(
+      'static let title: LocalizedStringResource = "Find \\"it\\""'
+    );
+    expect(swift).toContain('  var itemId: String\n');
+    expect(swift).toContain('    kids = value.kids?.map(ItemEntity.init)\n');
+    expect(swift).toContain('DisplayRepresentation(title: "Item")');
+    expect(swift).toContain('find(default: `default`, day: day, tags: tags)');
+    expect(swift).toContain(
+      'return .result(value: value.map(ItemEntity.init))'
     );
   });
 });

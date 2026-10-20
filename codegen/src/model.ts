@@ -41,6 +41,8 @@ export type TypeModel = {
 export type FunctionModel = {
   name: string;
   description: string;
+  /** User-visible name (iOS action title). Derived from `name` when the config omits it. */
+  title: string;
   params: FieldModel[];
   returns: ValueModel;
 } & (
