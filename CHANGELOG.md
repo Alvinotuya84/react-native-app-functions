@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-- iOS (in progress): the codegen generates App Intents (`AppFunctions.generated.swift`, `--swift-out`) from the same `appfunctions.config.ts`, for `native` functions with Swift handlers (`AppFunctionsHandlers`, registered in `AppFunctionsRegistry.handlers`). `ios/appfunctions.rb` adds `appfunctions_post_install(installer)` for the Podfile, which wires a regenerate-on-build phase into the app target. `js` functions are not exposed on iOS yet.
+- iOS (in progress): the codegen generates App Intents (`AppFunctions.generated.swift`, `--swift-out`) from the same `appfunctions.config.ts`, for `native` functions with Swift handlers (`AppFunctionsHandlers`, registered in `AppFunctionsRegistry.handlers`). `ios/appfunctions.rb` adds `appfunctions_post_install(installer)` for the Podfile, which wires a regenerate-on-build phase into the app target.
+- iOS `js` functions: the same `registerAppFunctionHandler` handlers run for App Intents through a Swift bridge in the library pod (calls queue until JS is ready, per-function `timeoutMs`, strict JSON decoding). `AppFunctionError` messages are shown to the user by Shortcuts/Siri. Works when the app is killed (launched in the background).
+- Native spec: `onCall` event and `ready()` (iOS; no-op on Android).
 - Config: optional `title` per function (the iOS action title). Default: derived from the function name.
 
 ## 0.1.0-alpha.0 (2026-10-10)

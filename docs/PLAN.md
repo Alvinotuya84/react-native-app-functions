@@ -374,7 +374,7 @@ Shortcuts / Siri / Apple Intelligence / Spotlight discover the actions
    - Verify: `xcodebuild` succeeds; the built `.app` contains `Metadata.appintents` listing the action; the action appears and runs in the **Shortcuts app on the iOS 27 simulator**, including after `xcrun simctl terminate` (cold).
    - **Spike in the same slice:** does RN's JS start when iOS launches the app in the background for an intent? This decides how the JS bridge waits.
 2. **(Done 2026-10-20) Codegen reproduces slice 1:** iOS templates plus a hand-written Swift fixture, with a byte-for-byte render test like Android; then the build integration (9.3).
-3. **JS bridge:** `onCall` + `ready()`, timeouts, error mapping, JSON decoding. The Notes demo gets iOS (the same four functions and handlers).
+3. **(Done 2026-10-21; Notes iOS wiring lands with the 0.2.0-alpha.0 release) JS bridge:** `onCall` + `ready()`, timeouts, error mapping, JSON decoding. The Notes demo gets iOS (the same four functions and handlers).
 4. **Docs + release:** README iOS section, VERIFIED/DECISIONS, `0.2.0-alpha.0` (after packed-tarball validation in a fresh RN app, as before).
 
 ### 9.5 Verification and its limits
