@@ -73,7 +73,7 @@ Layers:
 
 - **v0**: Android only. Done: one `native` function end to end (Phase 1), codegen reproducing it (Phase 2), `js` handlers via Headless JS (Phase 3). **Next: Phase 4, the auth gate, confirmation and dev harness.** See `docs/PLAN.md`.
 - **Later**: more types, multiple functions, generated TS types, iOS App Intents backend from the same config.
-- Published to npm as alpha (`0.1.0-alpha.0`, dist-tag `alpha`, `publishConfig.tag` enforces it). The author publishes with `npm publish --tag alpha --otp=<code>` (npm requires 2FA; don't rely on `publishConfig.tag`: npm 11.11 printed "with tag latest" despite it, so pass `--tag` explicitly and check `--dry-run` first). Keep `CHANGELOG.md` updated and validate the packed tarball in a fresh RN app before each release.
+- Published to npm as alpha (`0.1.0-alpha.0`, then `0.2.0-alpha.0` with iOS; dist-tag `alpha`, `publishConfig.tag` enforces it). The author publishes with `npm publish --tag alpha --otp=<code>` (npm requires 2FA; don't rely on `publishConfig.tag`: npm 11.11 printed "with tag latest" despite it, so pass `--tag` explicitly and check `--dry-run` first). Keep `CHANGELOG.md` updated and validate the packed tarball in a fresh RN app before each release.
 - **iOS** (App Intents from the same config, PLAN.md §9): slices 1–3 done (hand-written intent; codegen + Podfile helper `ios/appfunctions.rb`; JS bridge `ios/AppFunctionsJsBridge.swift`). Next: slice 4, README iOS docs and `0.2.0-alpha.0`. Shortcuts UI tests: `example/ios/AppFunctionsExampleUITests` (Notes demo with `TEST_RUNNER_NOTES_DEMO=1`). Build/test on the iOS 26.5 simulator (iOS 27 needs UIScene adoption in the RN app).
 - Out of scope for now: docs site.
 

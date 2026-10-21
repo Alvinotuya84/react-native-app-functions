@@ -1,9 +1,9 @@
 # react-native-app-functions
 
-Let on-device AI agents (Gemini and others) call into your React Native app through Android [AppFunctions](https://developer.android.com/ai/appfunctions). You declare the functions in TypeScript, and you implement them in Kotlin or JavaScript.
+Let on-device AI agents call into your React Native app: Android [AppFunctions](https://developer.android.com/ai/appfunctions) (Gemini and others) and iOS [App Intents](https://developer.apple.com/documentation/appintents) (Shortcuts, Siri). You declare the functions once in TypeScript, and you implement them in JavaScript, or natively in Kotlin and Swift.
 
 > [!WARNING]
-> **Alpha (`0.1.0-alpha.0`).** Android only, bare React Native 0.87+. Google's AppFunctions library is itself alpha (`androidx.appfunctions` `1.0.0-alpha13`), so breaking changes are expected.
+> **Alpha (`0.2.0-alpha.0`).** Android and iOS (new in this release), bare React Native 0.87+. Google's AppFunctions library is itself alpha (`androidx.appfunctions` `1.0.0-alpha13`), so breaking changes are expected.
 
 > [!CAUTION]
 > **There is no auth gate yet.** Any caller the OS lets use AppFunctions (system agents with `EXECUTE_APP_FUNCTIONS`) can call every function you declare, even when your app isn't running and no user is signed in. For now, **expose only read-only, non-sensitive data.** An app-provided auth check and in-app confirmation for destructive actions are the next milestone.
@@ -145,6 +145,30 @@ import './src/appFunctions';
 - **How it runs:** the call runs as a Headless JS task. If the app isn't running, React Native starts first. Handlers share the JS thread with your UI, so keep them short.
 - **Debug builds** load the JS bundle from Metro on a cold start. Without Metro running, JS functions time out (native functions still work). Release builds embed the bundle.
 
+## iOS (App Intents)
+
+The same `appfunctions.config.ts` generates one App Intent per function, so each function shows up as an action in Shortcuts (and Siri, by the shortcut's name). `js` functions run the same `registerAppFunctionHandler` handlers as on Android.
+
+1. In `ios/Podfile`:
+
+   ```ruby
+   require_relative '../node_modules/react-native-app-functions/ios/appfunctions'
+   # …
+   post_install do |installer|
+     react_native_post_install(installer, config[:reactNativePath], :mac_catalyst_enabled => false)
+     appfunctions_post_install(installer)
+   end
+   ```
+
+2. Run `pod install`. It generates `ios/<App>/AppFunctions.generated.swift`, adds it to your app target, and adds a build phase that regenerates it on every build. Add the file to `.gitignore`. If you have several app targets, pass `target: "MyApp"`.
+3. Node for the build phase comes from `ios/.xcode.env` (`NODE_BINARY`), like React Native's own build phases.
+
+- **`js` handlers:** when an action runs with the app killed, iOS launches it in the background, React Native loads your bundle, and the call waits (up to `timeoutMs`) for the handler. An `AppFunctionError` message is shown to the user as the action's error.
+- **`native` handlers:** implement the generated `AppFunctionsHandlers` protocol in Swift and register it at launch: `AppFunctionsRegistry.handlers = MyHandlers()` in `application(_:didFinishLaunchingWithOptions:)`.
+- **Requirements:** iOS 16+ for the intents (older iOS builds and runs without them). Tested on the iOS 26.5 simulator. The RN 0.87 template app doesn't launch on the iOS 27 simulator until it adopts `UIScene` (not specific to this library).
+- **Differences:** declared types become `TransientAppEntity` results; a field named `id` is exposed as `<type>Id`. Dates are `Date` (local dates use the device time zone). Declared types can't be parameters on iOS yet. Each function's `title` (optional, derived from its name) is the action's name.
+- **New actions** may not appear in Shortcuts until the app has been opened once after install.
+
 ## Config reference
 
 | Field | Notes |
@@ -153,7 +177,7 @@ import './src/appFunctions';
 | `android.serviceName` | Generated service class. Function IDs are `<kotlinPackage>.Base<serviceName>#<function>`. |
 | `android.appDescription` / `appDisplayDescription` | Optional. App-level text for agents and users. |
 | `types.<Name>` | `{ description?, fields: { <name>: value } }`. Becomes a Kotlin data class. |
-| `functions.<name>` | `{ description, handler: 'native' \| 'js', params?, returns, timeoutMs? }`. |
+| `functions.<name>` | `{ description, title?, handler: 'native' \| 'js', params?, returns, timeoutMs? }`. `title` is the iOS action name. |
 | value | `{ type, nullable?, description? }` or `{ type: 'list', of, nullable?, description? }`. |
 
 Value types, and how JS handlers see them:
@@ -186,7 +210,7 @@ On the Android 17 emulator its `run_privileged.sh` script picks up a wrong certi
 
 ## Known limitations
 
-- **Android only.** iOS (App Intents from the same config) is on the roadmap.
+- **iOS** is new and verified on the simulator through Shortcuts; real devices, Siri phrases (App Shortcuts) and Apple Intelligence are not verified yet.
 - **Bare React Native only for now.** An Expo config plugin is planned. Until then, Expo apps would have to apply the Gradle setup by hand after `prebuild`.
 - **Android 16.0 (the initial release)** indexes functions without descriptions or parameter schemas, and execution there hasn't been verified yet. Android 16 QPR and Android 17 are verified.
 - Cold-start latency has only been measured on emulators (about 100–300 ms per call). Real-device numbers are welcome.
@@ -197,7 +221,7 @@ On the Android 17 emulator its `run_privileged.sh` script picks up a wrong certi
 1. Auth gate (an app-provided check before every call) and in-app confirmation for destructive functions.
 2. JS API for support detection and enabling or disabling functions at runtime, plus an in-app test screen.
 3. Expo config plugin.
-4. iOS App Intents backend.
+4. iOS: App Shortcuts phrases for Siri, real-device verification.
 
 ## Feedback
 
