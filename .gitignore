@@ -84,3 +84,6 @@ android/generated
 
 # React Native Nitro Modules
 nitrogen/
+
+# react-native-app-functions: regenerated on every iOS build
+example/ios/AppFunctionsExample/AppFunctions.generated.swift

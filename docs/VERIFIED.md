@@ -220,6 +220,26 @@ Source: our own build of `example/` and emulator runs. Logs and commands are in 
 | Shortcuts (iOS 26.5 simulator) lists the app under its actions, finds "List Todays Records" by search, and running it cold shows the 3 records using the entity's `DisplayRepresentation` (title + status subtitle), without bringing the app to the foreground. | 2026-10-20 |
 | Automation: an XCUITest target can drive `XCUIApplication(bundleIdentifier: "com.apple.shortcuts")` (Create Shortcut → focus "Search Actions" (the first tap only expands the sheet) → type → tap the cell → `play`). Action **results are not in Shortcuts' accessibility tree**, so values are verified via screenshots/logs; the test asserts no error alert. `DeviceHub.app` (Xcode 27) shows the simulator UI. | 2026-10-20 |
 
+## iOS slice 2 results (codegen + Podfile helper, 2026-10-20)
+
+| Fact | Checked |
+|---|---|
+| SDK (Xcode 27 `AppIntents.swiftinterface`): `IntentParameter` has `init(title: LocalizedStringResource, description: LocalizedStringResource? = nil, …)` for any `Value.ValueType: _IntentValueRepresentable`. `String`, `Int`, `Double`, `Bool`, `Date`, `Optional` and `Array` conform to `_IntentValue`. `TransientAppEntity` gets a built-in `defaultQuery` (`_TransientAppEntityQuery`). | 2026-10-20 |
+| Generated Swift for a wide config (every scalar, nullable/list params and returns, nested/optional/list entities, Swift-keyword names, a param named `title`/`description` next to the static intent `title`/`description`) type-checks with `swiftc -typecheck -target arm64-apple-ios16.0-simulator` (Swift 5) with no warnings. Only the example's shapes have been through a full Xcode build and App Intents metadata extraction. | 2026-10-20 |
+| `appfunctions_post_install` in the example Podfile: `pod install` generates the file, adds the file reference + Compile Sources entry and the Run Script phase before Sources; a second `pod install` leaves `project.pbxproj` byte-identical. | 2026-10-20 |
+| With the generated file deleted, a Release `xcodebuild` for the iOS 26.5 simulator recreates it in the Run Script phase and succeeds. `Metadata.appintents` lists `ListTodaysRecordsIntent` returning `[FieldRecordEntity]`. The Shortcuts XCUITest passes (29 s) and shows the 3 records with status subtitles, same as the hand-written slice. | 2026-10-20 |
+
+## iOS slice 3 results (JS bridge, 2026-10-21)
+
+| Fact | Checked |
+|---|---|
+| RN docs (https://reactnative.dev/docs/the-new-architecture/native-modules-custom-events, docs version 0.87): a TurboModule spec declares events as `readonly onX: CodegenTypes.EventEmitter<T>`; the iOS module subclasses the generated `Native<Name>SpecBase` and calls `emitOnX:` with a dictionary; JS subscribes with `Native.onX(cb)` and removes with `.remove()`. | 2026-10-21 |
+| Adding `onCall` + `ready()` to the spec keeps Android building (`ready()` is a no-op override; events add no abstract methods). | 2026-10-21 |
+| A Swift class in the library pod (`DEFINES_MODULE`, `swift_version 5.0`) is importable from the app target's generated file (`import AppFunctions`) and from the ObjC++ module via `AppFunctions-Swift.h`, in the RN 0.87.1 example and in the Notes app installed from a packed tarball. | 2026-10-21 |
+| Shortcuts on the iOS 26.5 simulator, app killed before each run (XCUITest): `findRecord` (`js`) returns the record; a JS `AppFunctionError('NOT_FOUND', …)` shows its exact message as the action's error alert; a handler slower than `timeoutMs` shows `JS handler "findRecord" did not respond within 10000 ms`. Notes (`js` only): Create Note creates the note (visible in the app afterwards), Search Notes and List Recent Notes return `Note` entities. | 2026-10-21 |
+| Shortcuts may not list a freshly installed build's new actions until the app has been launched once; the UI tests launch and terminate the app first. | 2026-10-21 |
+| Test tooling: a helper named `run()` in an `XCTestCase` subclass is shadowed by `XCTestCase.run()` ("Invalid attempt to start a test run that has already been started"). With the keyboard up, tapping Shortcuts' play button can hit the dictation key; type `"\n"` to close it first. `xcodebuild test` sometimes hangs after the tests finish on this machine (wrap it in `timeout`). | 2026-10-21 |
+
 ## Local machine (2026-10-10)
 
 - JDK 17.0.14. Android SDK platform `android-37.0` and build-tools 37.0.0 installed (2026-10-10). `adb` present.

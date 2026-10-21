@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { main, writeOutputs } from '../src/cli';
+import { main, parseArgs, writeOutputs } from '../src/cli';
 
 const FIXTURE_CONFIG = path.join(
   __dirname,
@@ -53,6 +53,32 @@ describe('cli', () => {
         )
       )
     ).toBe(true);
+  });
+
+  it('writes only the Swift file with --swift-out, and only when it changed', () => {
+    const swift = path.join(tmp, 'ios/App/AppFunctions.generated.swift');
+    const sibling = path.join(tmp, 'ios/App/AppDelegate.swift');
+    fs.mkdirSync(path.dirname(sibling), { recursive: true });
+    fs.writeFileSync(sibling, 'keep');
+    expect(main(['--config', FIXTURE_CONFIG, '--swift-out', swift])).toBe(0);
+    expect(fs.readFileSync(swift, 'utf8')).toContain(
+      'struct ListTodaysRecordsIntent'
+    );
+    const old = new Date(2000, 0, 1);
+    fs.utimesSync(swift, old, old);
+    expect(main(['--config', FIXTURE_CONFIG, '--swift-out', swift])).toBe(0);
+    expect(fs.statSync(swift).mtime.getTime()).toBe(old.getTime());
+    expect(fs.readFileSync(sibling, 'utf8')).toBe('keep');
+    expect(fs.existsSync(path.join(tmp, 'manifest'))).toBe(false);
+  });
+
+  it('rejects partial Android flags and unknown flags', () => {
+    expect(() =>
+      parseArgs(['--config', 'c', '--kotlin-out', 'k', '--swift-out', 's'])
+    ).toThrow(/usage/);
+    expect(() => parseArgs(['--config', 'c', '--ios-out', 's'])).toThrow(
+      /usage/
+    );
   });
 
   it('deletes stale files and leaves unchanged files untouched', () => {

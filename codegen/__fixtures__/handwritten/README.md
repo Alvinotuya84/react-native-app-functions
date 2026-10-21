@@ -11,3 +11,13 @@ Deliberate changes from the Phase 1 files, decided in Phase 2:
 - Manifest entries live in a standalone manifest overlay (`manifest/AndroidManifest.xml`) that AGP merges in, instead of being edited into the app's manifest.
 
 Function IDs keep the Phase 1 shape: `<kotlinPackage>.Base<serviceName>#<function>`.
+
+## iOS (`ios/AppFunctions.generated.swift`)
+
+Written by hand from the iOS slice 1 example (`example/ios/AppFunctionsExample/AppFunctionsIntents.swift`, commit `c53b237`), which compiled and ran in Shortcuts. Deliberate changes, decided in iOS slice 2:
+
+- The `// GENERATED — do not edit` header.
+- The entity property for the `id` field is `fieldRecordId` (`<type><Field>`, a derivable rule) instead of `recordId`.
+- The handler result is bound to `value` instead of `records`.
+
+`../handwritten-js/ios/AppFunctions.generated.swift` (iOS slice 3) is the generator's output for the native + js config, reviewed and then verified on the simulator (Shortcuts runs of both functions, JS errors and timeout), and frozen as the reference.

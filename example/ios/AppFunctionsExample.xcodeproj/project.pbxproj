@@ -9,12 +9,12 @@
 /* Begin PBXBuildFile section */
 		0C80B921A6F3F58F76C31292 /* libPods-AppFunctionsExample.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DCACB8F33CDC322A6C60F78 /* libPods-AppFunctionsExample.a */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
+		3EB6DDB8A07EF690303B8AD4 /* AppFunctions.generated.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E591C0C7F58087EFD36DBB7 /* AppFunctions.generated.swift */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		7F806468B6C310738024A576 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		C9581BC62D4F8C2AAE2FCADE /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1B4D5CBAFA05289330A3B6CA /* Foundation.framework */; };
 		DEE96340CDF021590A8C24EF /* ShortcutsIntentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE9CFADF9442CD9E60B6372F /* ShortcutsIntentTests.swift */; };
-		FE9A56DEC25ACA107D0E9895 /* AppFunctionsIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCFF66651605D1F31335B862 /* AppFunctionsIntents.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -28,6 +28,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0E591C0C7F58087EFD36DBB7 /* AppFunctions.generated.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppFunctions.generated.swift; path = AppFunctionsExample/AppFunctions.generated.swift; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* AppFunctionsExample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AppFunctionsExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = AppFunctionsExample/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = AppFunctionsExample/Info.plist; sourceTree = "<group>"; };
@@ -38,7 +39,6 @@
 		5DCACB8F33CDC322A6C60F78 /* libPods-AppFunctionsExample.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-AppFunctionsExample.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = AppFunctionsExample/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = AppFunctionsExample/LaunchScreen.storyboard; sourceTree = "<group>"; };
-		BCFF66651605D1F31335B862 /* AppFunctionsIntents.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppFunctionsIntents.swift; path = AppFunctionsExample/AppFunctionsIntents.swift; sourceTree = "<group>"; };
 		DE9CFADF9442CD9E60B6372F /* ShortcutsIntentTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShortcutsIntentTests.swift; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F976BBCCB62F5F8D8E2CCD02 /* AppFunctionsExampleUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AppFunctionsExampleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -72,7 +72,7 @@
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
-				BCFF66651605D1F31335B862 /* AppFunctionsIntents.swift */,
+				0E591C0C7F58087EFD36DBB7 /* AppFunctions.generated.swift */,
 			);
 			name = AppFunctionsExample;
 			sourceTree = "<group>";
@@ -152,6 +152,7 @@
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "AppFunctionsExample" */;
 			buildPhases = (
 				C38B50BA6285516D6DCD4F65 /* [CP] Check Pods Manifest.lock */,
+				1128CD43D36CC457AF1F9581 /* [react-native-app-functions] Generate App Intents */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
@@ -272,6 +273,27 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-AppFunctionsExample/Pods-AppFunctionsExample-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
+		1128CD43D36CC457AF1F9581 /* [react-native-app-functions] Generate App Intents */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/../appfunctions.config.ts",
+			);
+			name = "[react-native-app-functions] Generate App Intents";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/AppFunctionsExample/AppFunctions.generated.swift",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Added by react-native-app-functions (appfunctions_post_install in the Podfile).\nset -e\nif [ -f \"$SRCROOT/.xcode.env\" ]; then . \"$SRCROOT/.xcode.env\"; fi\nif [ -f \"$SRCROOT/.xcode.env.local\" ]; then . \"$SRCROOT/.xcode.env.local\"; fi\n\"${NODE_BINARY:-node}\" \"$SRCROOT/../../codegen/lib/cli.js\" \\\n  --config \"$SRCROOT/../appfunctions.config.ts\" \\\n  --swift-out \"$SRCROOT/AppFunctionsExample/AppFunctions.generated.swift\" \\\n  || { echo \"error: react-native-app-functions: generating App Intents failed (see above)\"; exit 1; }\n";
+		};
 		C38B50BA6285516D6DCD4F65 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -327,7 +349,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
-				FE9A56DEC25ACA107D0E9895 /* AppFunctionsIntents.swift in Sources */,
+				3EB6DDB8A07EF690303B8AD4 /* AppFunctions.generated.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

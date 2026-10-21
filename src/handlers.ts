@@ -1,4 +1,4 @@
-import { AppRegistry } from 'react-native';
+import { AppRegistry, Platform } from 'react-native';
 import NativeAppFunctions from './NativeAppFunctions';
 import type {
   AppFunctionScalarType,
@@ -155,5 +155,18 @@ async function runCall({ callId, name, argsJson }: TaskData): Promise<void> {
   }
 }
 
-// The task never rejects: failures are reported through failCall, so no red box / retry logic.
-AppRegistry.registerHeadlessTask(TASK_KEY, () => runCall);
+if (Platform.OS === 'ios') {
+  // App Intents reach JS through the module's `onCall` event. `ready()` tells native we are
+  // subscribed, so it delivers calls queued while JS was starting. Events arrive asynchronously,
+  // after the bundle's top-level code (including registerAppFunctionHandler calls) has run.
+  const native = NativeAppFunctions;
+  if (native) {
+    native.onCall((call) => {
+      runCall(call);
+    });
+    native.ready();
+  }
+} else {
+  // The task never rejects: failures are reported through failCall, so no red box / retry logic.
+  AppRegistry.registerHeadlessTask(TASK_KEY, () => runCall);
+}

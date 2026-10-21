@@ -1,7 +1,8 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { generate } from '../src/cli';
-import type { OutputRoot } from '../src/render';
+import { generate, loadModel } from '../src/cli';
+import { renderSwift, type OutputRoot } from '../src/render';
+import { SWIFT_FILE_NAME } from '../src/templates/swift';
 
 const FIXTURES = path.join(__dirname, '../__fixtures__');
 
@@ -60,3 +61,18 @@ it('example app config is the latest reference config (handwritten-js)', () => {
     )
   );
 });
+
+it.each(['handwritten', 'handwritten-js'])(
+  'Swift output reproduces the %s iOS reference byte for byte',
+  (fixture) => {
+    const model = loadModel(
+      path.join(FIXTURES, fixture, 'appfunctions.config.ts')
+    );
+    expect(renderSwift(model)).toBe(
+      fs.readFileSync(
+        path.join(FIXTURES, fixture, 'ios', SWIFT_FILE_NAME),
+        'utf8'
+      )
+    );
+  }
+);

@@ -1,4 +1,4 @@
-// Hand-written iOS reference (PLAN.md §9.4 slice 1). The codegen must reproduce this file.
+// GENERATED — do not edit. Source: appfunctions.config.ts (react-native-app-functions).
 import AppIntents
 import Foundation
 
@@ -44,7 +44,7 @@ struct FieldRecordEntity: TransientAppEntity {
   static let typeDisplayRepresentation: TypeDisplayRepresentation = "Field Record"
 
   @Property(title: "Id")
-  var recordId: String
+  var fieldRecordId: String
   @Property(title: "Title")
   var title: String
   @Property(title: "Status")
@@ -59,7 +59,7 @@ struct FieldRecordEntity: TransientAppEntity {
   init() {}
 
   init(_ value: FieldRecord) {
-    recordId = value.id
+    fieldRecordId = value.id
     title = value.title
     status = value.status
     scheduledAt = value.scheduledAt
@@ -77,7 +77,7 @@ struct ListTodaysRecordsIntent: AppIntent {
     guard let handlers = AppFunctionsRegistry.handlers else {
       throw AppFunctionsIntentError(message: "The app did not register AppFunctionsHandlers")
     }
-    let records = try await handlers.listTodaysRecordsHandler.listTodaysRecords()
-    return .result(value: records.map(FieldRecordEntity.init))
+    let value = try await handlers.listTodaysRecordsHandler.listTodaysRecords()
+    return .result(value: value.map(FieldRecordEntity.init))
   }
 }

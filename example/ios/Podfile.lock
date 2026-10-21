@@ -1896,7 +1896,7 @@ EXTERNAL SOURCES:
     :path: build/rncore-facades/Yoga
 
 SPEC CHECKSUMS:
-  AppFunctions: 8ae45ac0e49e3f3e40ac675ea0e2b09f3c521be4
+  AppFunctions: 8264dec1cef5167d46bfa3b7b7dfe8f37cdeed0e
   boost: 2a9d6e1d9873337543f08d9dbc007b288f4e113b
   DoubleConversion: e85e4faac763226bfd1cc4c6a98d8355149b27a5
   fast_float: 908e5ee35999f3d91af4b962ac951acac591866c
@@ -1983,6 +1983,6 @@ SPEC CHECKSUMS:
   SocketRocket: d57b1af80c029e12a75cd9b218287c67381e4593
   Yoga: 58b502c52b14ad3c4468805d461fc37d275c2a42
 
-PODFILE CHECKSUM: ea0dea9897a2ca800be8293c1969b19053add35c
+PODFILE CHECKSUM: 63dc692f30f51f1acc7dcc49589a5be6b343dca0
 
 COCOAPODS: 1.16.2
