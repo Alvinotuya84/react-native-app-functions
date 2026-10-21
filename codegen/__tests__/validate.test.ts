@@ -405,7 +405,7 @@ describe('iOS (Swift)', () => {
     ]);
   });
 
-  it('maps types, escapes keywords and strings, and skips js functions', () => {
+  it('maps types, escapes keywords and strings, and bridges js functions', () => {
     const swift = renderSwift(
       validateConfig(
         base(
@@ -420,6 +420,15 @@ describe('iOS (Swift)', () => {
               returns: { type: 'Item', nullable: true },
             }),
             later: fn({ handler: 'js' }),
+            jsArgs: fn({
+              handler: 'js',
+              params: {
+                day: { type: 'localDate' },
+                at: { type: 'instant', nullable: true },
+                words: { type: 'list', of: 'string' },
+              },
+              returns: { type: 'list', of: 'Item', nullable: true },
+            }),
           },
           {
             Item: {
@@ -433,8 +442,10 @@ describe('iOS (Swift)', () => {
         )
       )
     );
+    expect(swift).toContain('import AppFunctions\n');
+    expect(swift).toContain('struct LaterIntent: AppIntent {');
     expect(swift).toContain(
-      '// Not exposed on iOS yet ("js" handlers): later.'
+      'let value: String = try await AppFunctionsJson.call(\n      "later", args, timeoutMs: 10000\n    )'
     );
     expect(swift).toContain(
       'func find(`default`: Bool, day: Date?, tags: [String]) async throws -> Item?'

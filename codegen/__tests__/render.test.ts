@@ -62,14 +62,17 @@ it('example app config is the latest reference config (handwritten-js)', () => {
   );
 });
 
-it('Swift output reproduces the hand-written iOS reference byte for byte', () => {
-  const model = loadModel(
-    path.join(FIXTURES, 'handwritten', 'appfunctions.config.ts')
-  );
-  expect(renderSwift(model)).toBe(
-    fs.readFileSync(
-      path.join(FIXTURES, 'handwritten', 'ios', SWIFT_FILE_NAME),
-      'utf8'
-    )
-  );
-});
+it.each(['handwritten', 'handwritten-js'])(
+  'Swift output reproduces the %s iOS reference byte for byte',
+  (fixture) => {
+    const model = loadModel(
+      path.join(FIXTURES, fixture, 'appfunctions.config.ts')
+    );
+    expect(renderSwift(model)).toBe(
+      fs.readFileSync(
+        path.join(FIXTURES, fixture, 'ios', SWIFT_FILE_NAME),
+        'utf8'
+      )
+    );
+  }
+);

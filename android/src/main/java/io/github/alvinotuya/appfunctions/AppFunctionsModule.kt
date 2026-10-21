@@ -13,6 +13,9 @@ class AppFunctionsModule(reactContext: ReactApplicationContext) :
     JsBridge.failCall(callId, code, message)
   }
 
+  /** iOS only: Android delivers calls as Headless JS tasks, so there is nothing to flush. */
+  override fun ready() {}
+
   companion object {
     const val NAME = NativeAppFunctionsSpec.NAME
   }

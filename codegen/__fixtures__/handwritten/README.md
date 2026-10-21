@@ -19,3 +19,5 @@ Written by hand from the iOS slice 1 example (`example/ios/AppFunctionsExample/A
 - The `// GENERATED — do not edit` header.
 - The entity property for the `id` field is `fieldRecordId` (`<type><Field>`, a derivable rule) instead of `recordId`.
 - The handler result is bound to `value` instead of `records`.
+
+`../handwritten-js/ios/AppFunctions.generated.swift` (iOS slice 3) is the generator's output for the native + js config, reviewed and then verified on the simulator (Shortcuts runs of both functions, JS errors and timeout), and frozen as the reference.
