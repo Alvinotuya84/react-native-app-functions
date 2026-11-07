@@ -15,9 +15,12 @@
       "types": "./lib/typescript/src/config.d.ts",
       "default": "./lib/module/config.js"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./app.plugin.js": "./app.plugin.js"
   },
   "files": [
+    "app.plugin.js",
+    "plugin",
     "src",
     "lib",
     "android",
@@ -37,13 +40,14 @@
     "!**/__tests__",
     "!**/__fixtures__",
     "!**/__mocks__",
-    "!**/.*"
+    "!**/.*",
+    "!plugin/tsconfig.check.json"
   ],
   "scripts": {
     "example": "yarn workspace react-native-app-functions-example",
     "clean": "del-cli android/build example/android/build example/android/app/build example/ios/build lib",
     "prepare": "bob build && tsc -p codegen/tsconfig.json",
-    "typecheck": "tsc && tsc -p codegen/tsconfig.check.json",
+    "typecheck": "tsc && tsc -p codegen/tsconfig.check.json && tsc -p plugin/tsconfig.check.json",
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
     "test": "jest"
   },
@@ -81,6 +85,7 @@
     "@eslint/compat": "^2.1.0",
     "@eslint/eslintrc": "^3.3.6",
     "@eslint/js": "^9.39.5",
+    "@expo/config-plugins": "~58.0.12",
     "@react-native/babel-preset": "0.87.1",
     "@react-native/eslint-config": "0.86.2",
     "@types/jest": "^30.0.0",
@@ -98,8 +103,14 @@
     "turbo": "^2.10.8"
   },
   "peerDependencies": {
+    "expo": "*",
     "react": "*",
     "react-native": "*"
+  },
+  "peerDependenciesMeta": {
+    "expo": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">= 22.13"
@@ -155,7 +166,8 @@
   "jest": {
     "testEnvironment": "node",
     "roots": [
-      "<rootDir>/codegen"
+      "<rootDir>/codegen",
+      "<rootDir>/plugin"
     ],
     "testMatch": [
       "**/__tests__/**/*.test.ts"
@@ -165,6 +177,9 @@
       "<rootDir>/lib/",
       "<rootDir>/codegen/lib/",
       "<rootDir>/examples/"
-    ]
+    ],
+    "moduleNameMapper": {
+      "^expo/config-plugins$": "@expo/config-plugins"
+    }
   }
 }
