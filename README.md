@@ -41,6 +41,42 @@ npm install react-native-app-functions@alpha
 yarn add react-native-app-functions@alpha
 ```
 
+## Setup (Expo)
+
+Tested with Expo SDK 58 (React Native 0.88) on Android and iOS; CI builds a new SDK 58 app with
+exactly this setup (`.github/workflows/expo-plugin.yml`).
+
+1. Install the library (see Install above) and `expo-build-properties`, which sets the Android SDK
+   level AppFunctions needs:
+
+   ```sh
+   npx expo install expo-build-properties
+   ```
+
+2. Add both plugins to your app config:
+
+   ```json
+   {
+     "expo": {
+       "plugins": [
+         "react-native-app-functions",
+         ["expo-build-properties", { "android": { "compileSdkVersion": 37, "targetSdkVersion": 37 } }]
+       ]
+     }
+   }
+   ```
+
+3. Create `appfunctions.config.ts` next to your `package.json` (step 3 of the bare React Native
+   setup below) and run `npx expo prebuild`.
+
+The plugin applies the Android and iOS setup described below: KSP and `appfunctions.gradle` in the
+Gradle files, and `appfunctions_post_install` in the Podfile. It edits the native projects that
+`expo prebuild` generates, using Expo's own code generator: each addition is a marked
+`@generated` block, so running prebuild again neither duplicates nor loses it. Like Expo's own
+plugins, it locates those blocks by matching lines of Expo's templates; if you customise the
+native files and it cannot find a match, prebuild stops with an error, and you can apply the bare
+React Native setup below by hand instead.
+
 ## Setup (bare React Native)
 
 1. Add KSP to `android/build.gradle`:
@@ -211,7 +247,7 @@ On the Android 17 emulator its `run_privileged.sh` script picks up a wrong certi
 ## Known limitations
 
 - **iOS** is new and verified on the simulator through Shortcuts; real devices, Siri phrases (App Shortcuts) and Apple Intelligence are not verified yet.
-- **Bare React Native only for now.** An Expo config plugin is planned. Until then, Expo apps would have to apply the Gradle setup by hand after `prebuild`.
+- **Expo:** the config plugin is built in CI on Android and iOS; native handlers on iOS still need the manual registration described above.
 - **Android 16.0 (the initial release)** indexes functions without descriptions or parameter schemas, and execution there hasn't been verified yet. Android 16 QPR and Android 17 are verified.
 - Cold-start latency has only been measured on emulators (about 100–300 ms per call). Real-device numbers are welcome.
 - Not yet supported: maps, enums (use `string` and describe the allowed values), lists of numbers or booleans, nested lists, functions with no return value.
@@ -220,8 +256,7 @@ On the Android 17 emulator its `run_privileged.sh` script picks up a wrong certi
 
 1. Auth gate (an app-provided check before every call) and in-app confirmation for destructive functions.
 2. JS API for support detection and enabling or disabling functions at runtime, plus an in-app test screen.
-3. Expo config plugin.
-4. iOS: App Shortcuts phrases for Siri, real-device verification.
+3. iOS: App Shortcuts phrases for Siri, real-device verification.
 
 ## Feedback
 

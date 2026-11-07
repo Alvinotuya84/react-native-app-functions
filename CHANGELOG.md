@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Expo config plugin (`"plugins": ["react-native-app-functions"]`): `expo prebuild` applies the Android setup (KSP and `appfunctions.gradle`) and the iOS setup (`appfunctions_post_install` in the Podfile). Edits are `@generated` blocks made with Expo's `CodeGenerator.mergeContents`, so re-running prebuild doesn't duplicate them; prebuild stops with an error if Expo's template lines aren't found. `expo` is an optional peer dependency. CI builds a new Expo SDK 58 app with the plugin on Android and iOS.
+
 ## 0.2.0-alpha.0 (2026-10-21)
 
 iOS support: App Intents generated from the same config.
